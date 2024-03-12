@@ -1,0 +1,38 @@
+%!TEX root = ../../main.tex
+
+\section[Non-deterministic strategy for reachability games]{Non-deterministic strategy for reachability\\ games} 
+\label{sec:non-deterministic-strategy-reachability-game}
+
+In this section we present a way to obtain the non-deterministic strategy for reachability games.
+Once we have obtained the non-deterministic strategy for reachability games, we can apply \autoref{alg:functional-strategy} to determinize it.
+
+\begin{definition}[Non-deterministic strategy for reachability games]
+Let $\game$ be a reachability game represented symbolically, $W_0(G)$ be the winning region of $P_0$ for the reachability game and $\set{Attr_0^0,\dots,Attr_0^n}$ set of attractors computed during the resolution of reachability game such that $Attr_0^0 \subsetneq Attr_0^1 \subsetneq \dots \subsetneq Attr_0^n$.
+A non-deterministic strategy $\lambda \subseteq \Bool^L \times \Bool^u \times \Bool^c$ is defined as:
+\begin{flalign*}
+\lambda(L,X_u,X_c) = \bigvee_{i=1}^n \exists L'.\; (Attr_0^i(L) \land \neg Attr_0^{i-1}(L)) \land T(L,X_u,X_c,L') \land Attr_0^{i-1}(L')
+\end{flalign*}
+where $L$ is the set of states, $X_u$ is the set of uncontrollable variables and $X_c$ is the set of controllable variables. 
+\end{definition}
+
+The underlying idea of the correctness of this construction is: given that $Attr_0^i$ contains all attractors of smaller index and $Attr_0^0$ contains the set $R$ of unsafe states we want to reach, we selects all transitions from the controlled predecessor with index $i$ (i.e. $Attr_0^i(L) \land \neg Attr_0^{i-1}(L)$) to the smaller attractor with index $i-1$.
+
+\begin{theorem}[Correctness of non-deterministic strategy for reachability games]
+Starting from any attractor $i$, there exists a strategy such that player $0$ reaches the set $R$ of states to reach no matter what player $1$ does.
+
+\begin{proof}
+We prove the statement by induction on $i$ number of attractors.
+\begin{itemize}
+    \item ($i = 0$) \\
+    If $i = 0$ it means we start from $Attr_0^0$ to reach the set $R$ of unsafe states. 
+    By definition, the attractor at index $0$ is exactly $R$, therefore we have already reached it.
+
+    \item ($i \implies i+1$) \\
+    Inductive hypothesis: starting from attractor $i$, there exists a strategy such that player $0$ reaches the set $R$ of states to reach no matter what player $1$ does. \\
+    If we start from the attractor $Attr_0^{i+1}$, then we have two chances: either picking a state from $Attr_0^i$ or picking a state from $Attr_0^{i+1} \land \neg Attr_0^i$.
+    In the first case, by inductive hypothesis we know that there exists a strategy from $Attr_0^i$ such that player $0$ reaches the set $R$ of states no matter what player $1$ does. 
+    In the second case, from construction of $\lambda$ we know that there exists a transition $L'$ bringing player $0$ from $Attr_0^{i+1} \land \neg Attr_0^{i}$ to $Attr_0^i$, from which by inductive hypothesis there exists a strategy such that player $0$ reaches the set $R$ of states no matter what player $1$ does.
+    Therefore, in any case we will reach the set of states $R$. 
+\end{itemize}
+\end{proof}
+\end{theorem}

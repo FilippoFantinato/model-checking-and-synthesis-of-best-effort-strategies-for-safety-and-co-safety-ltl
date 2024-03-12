@@ -1,0 +1,17 @@
+\section{Problem formulation}
+
+Finally, we can formally look at the problem we are dealing with.
+Given a plant, a controller and a safety or co-safety $\ltl$ formula, we want to figure out whether the formula is satisfied by the closed-loop between plant and controller and whether my controller is the best one for my plant on such formula according to an optimality principle.
+If there does not exists a better controller, we say that the given one is the optimal controller.
+The optimality principle we choose is the one given by best-effort semantics, because it is the most generic one.
+Basically, what we do it to look for another controller such that manage to keep the value of a variable in the plant strictly smaller than what the given controller can do.
+The controller on which we do this check must satisfy the formula under the best-effort semantics, so in this way we know that there is no other smaller value such that could falsify the optimality check.
+
+\begin{definition}[Optimal controller]
+Let $\controller$ be a controller, $\plant$ a plant and $\phi$ a formula, belonging to either co-safety or safety fragment, $\tuple{\domain,\prec}$ be a strict partially order set, $\sigma.v \in \domain$ a variable and $u \in \domain$ an upper bound to $\sigma.v$.
+We say that $\controller$ is optimal w.r.t. $\plant.v$ with bound $u$, if and only if
+\begin{flalign*}
+\closedloop{\plant}{\controller} \modelsBE{\plant.v \prec u} \phi \; \land 
+\not\exists\controller'.\; \exists u' \prec u.\; \closedloop{\plant}{\controller'} \modelsBV{\plant.v \prec u'} \phi    
+\end{flalign*}
+\end{definition}

@@ -1,0 +1,223 @@
+%!TEX root = ../../main.tex
+
+\section{Reduction to a synthesis problem}
+\label{sec:reduction-to-synthesis}
+
+In this section we propose a solution to the problem we are facing.
+Such solution relies on the fact that our problem can be reduced to a synthesis problem.
+In particular, let $\plant$ be a plant, $\controller$ be a controller, $\phi$ a formula belonging to either the safety or co-safety fragment and $u$ be a bound to a bounded integer variable $\plant.v$ such that $\closedloop{\plant}{\controller} \modelsBV{\plant.v \prec u} \phi$.
+We want to synthesize a new controller $\controller'$ such that $\closedloop{\plant}{\controller'} \modelsBV{\plant.v \prec u' \prec u} \phi$.
+If a better controller is realizable, then it means that the given controller is not optimal, otherwise (i.e. a better controller is not realizable) it means that the given controller is optimal.
+A sketch of the algorithm described above can be found here: given $\plant$, $\controller$, $\phi$ and $u$
+\begin{enumerate}[label=\enumpar]
+    \item if $\closedloop{\plant}{\controller} \not\models \phi$, then exit with an error code because by assumption $\phi$ must hold on the closed loop;
+    \item generate the safety arena $M$ of $\phi$/$\neg\phi$ with assumption $\plant$;
+    \item add the constraint $\plant.v \prec u' \prec u$ to the safety arena $M$;
+    \item solve the safety/reachability game on the constrained safety arena $M$;
+    \item if the game is realizable, then returns the new controller $\controller'$ just synthesized, otherwise returns that there is no better controller.
+\end{enumerate}
+
+\begin{algorithm}[ht]
+    \caption{Optimality test algorithm for safety properties}
+\begin{algorithmic}[1]
+\Procedure{IsOptimalController}{$\plant$, $\controller$, $\phi$, $controllables$, $v$, $u$}
+    \If{$\closedloop{\plant}{\controller} \not\models \phi$}
+        \State Error "the closed-loop $\closedloop{\plant}{\controller}$ does not satisfy $\phi$"
+    \EndIf
+    \State generate the safety arena $M$ of $\phi$ with assumption $\plant$
+    \State add the constraint $\plant.v \prec u' \prec u$ to the safety arena
+    \State solve the safety game on the constrained safety arena with $controllables$ as controllable variables
+    \If{the game is realizable}
+        \State \Return return the new controller $C'$ just synthesized
+    \Else
+        \State \Return there is no better controller
+    \EndIf
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[ht]
+    \caption{Optimality test algorithm for co-safety properties}
+\begin{algorithmic}[1]
+\Procedure{IsOptimalController}{$\plant$, $\controller$, $\phi$, $controllables$, $v$, $u$}
+    \If{$\closedloop{\plant}{\controller} \not\models \phi$}
+        \State Error "the closed-loop $\closedloop{\plant}{\controller}$ does not satisfy $\phi$"
+    \EndIf
+    \State generate the safety arena $M$ of $\neg\phi$ with assumption $\plant$
+    \State add the constraint $\plant.v \prec u' \prec u$ to the safety arena
+    \State solve the reachability game on the constrained safety arena with $controllables$ as controllable variables
+    \If{the game is realizable}
+        \State \Return return the new controller $C'$ just synthesized
+    \Else
+        \State \Return there is no better controller
+    \EndIf
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+Note that to avoid complicating the algorithm, we use only safety arenas and we play both safety and reachability games on them, according to what kind of property we want to synthesize.
+Indeed, as we have already said in \autoref{sec:reactive-synthesis}, safety games are suitable to synthesize safety properties, while reachability games are suitable to synthesize co-safety properties.
+Since we just talk about safety arenas, we exploit the duality between safety and co-safety properties and safety and reachability games to synthesize co-safety properties.
+
+When we want to synthesize co-safety properties, first we negate the formula which becomes a safety property and then we play a reachability game on such arena aiming to reach the unsafe states, i.e. those making the formula false. 
+That is exactly what we want, in fact if we manage to synthesize a controller which falsify the negation of our initial formula, then it means that it satisfies our original co-safety property. 
+Now we deepen the most important steps of the algorithm: (2) and (3).
+
+The step number (2) speaks about safety arena assuming the plant.
+We have never spoken about it, but it is possible to synthesize formulas enriched with other formulas as assumption.
+That is obtainable from the synchronous product between a monitor for the formula $\phi$ and a monitor for the plant, ending up with a new enriched safety arena.
+The idea under building a monitor for a plant is to simulate the behaviour of the plant, checking at each step whether the input values corresponding to the plant variables are consistent with the state of our monitor.
+If they are not consistent, then go to a sink state which is the error state of the monitor.
+Since along all the thesis we have used the SMV language to describe finite state machines, we assume our plant described by SMV language. 
+The resulting monitor is also described in SMV language.
+
+Given a plant $\plant$ as a DFA in SMV, we want to build a monitor simulating the behavior of $\plant$ and at each step it checks whether the output variables received in input as input parameters are consistent with their simulated counterpart. 
+If some variables are not consistent with the internal state of the monitor, then it goes to a sink state signaling that the monitor is in an error state from now on.
+
+\begin{definition}[Monitor of a plant]
+Let $\plant$ be a DFA described in SMV with $P_I$ plant input variables, $P_V$ plant state variables, $P_D$ plant define variables and $P_O \subseteq P_V \cup P_D$ set of plant output variables.
+The resulting monitor of $P$, denoted as $MON_P$, is a DFA with $MON_{P_I}$ monitor input variables made up by the union between $P_I$ and $P_O$, $MON_{P_V}$ monitor state variables made up by the simulated version and the corresponding error variable for each variable in $P_V$, $MON_{P_D}$ monitor define variables made up by the simulated version for reach variable in $P_D$ and a further define variable named \lstinline{ERROR} which represented the sink state.
+\end{definition}
+
+Here below you can see the general scheme for the construction of a monitor given a plant.
+\begin{lstlisting}[language=smv, mathescape=true,  caption=Reduction to synthesis problem: plant monitor construction scheme, label={lst:monitor-construction}]
+* $P_I = \{ i_1 \dots i_n \}$ set of plant input variables
+* $P_V = \{ v_1 \dots v_m \}$ set of plant state variables
+* $P_D = \{ d_1 \dots d_k \}$ set of plant define variables
+* $P_O = \{ o_1 \dots o_l \} \subseteq V \cup D$ set of plant output variables
+MODULE monitor($P_I$,$P_O$)
+VAR
+    $\forall\; o \in P_O$
+    ERROR_o : boolean;
+    $\forall\; v \in P_V$
+    SIMULATED_v : boolean;
+DEFINE
+    ERROR := $\bigvee_{o \in O}$ ERROR_o;
+    $\forall\; d \in D$
+    SIMULATED_d := same behavour as "d" but using simulated vars except for inputs;
+ASSIGN
+    $\forall\; v \in P_V$
+    init(SIMULATED_v) := same behaviour as init(v) but using simulated vars except for input ones; 
+    next(SIMULATED_v) := same behaviour as next(v) but using simulated vars except for input ones;
+ASSIGN
+    $\forall\; o \in P_O$
+    init(ERROR_o) := FALSE;
+    next(ERROR_o) := ERROR_o | (SIMULATED_o != o);
+\end{lstlisting}
+
+Later we need to make the synchronous product between the monitor of a formula and the monitor plant and state the set of safe states.
+Here we make a distinction between whether we need to synthesize a safety property (solving a safety game) or a co-safety property (solving a reachability game).
+The arena is the same and it is a safety arena, but the set of safe states changes according to the game to solve.
+
+Regarding safety games, the invariant of the game is given by an implication between the plant monitor and the formula monitor.
+In particular, we want that if the monitor is not in the sink state, then the formula must holds and so it is not in error.
+In this case the environment player tries to wins forcing the controller player to an unsafe state, that is where the plant monitor is not in error and the formula monitor is in error. 
+In other words, the environment player manages to falsify the formula in compliance with the plant.
+
+\begin{lstlisting}[language=SMV,mathescape=true, caption=Reduction to synthesis problem: safe states for safety properties]
+MODULE main
+IVAR
+    $i$ : boolean; $\forall\; i \in I$
+    $o$ : boolean; $\forall\; o \in O$
+VAR
+    phi : formula_monitor(I,O);
+    mon : plant_monitor(I,O);
+INVARSPEC !mon.error -> !phi.error
+\end{lstlisting}
+
+Regarding reachability games, the invariant of the game is given by a logical and between the plant monitor and the formula monitor.
+Since the arena is a safety arena, we describe the safe states for the environment player $P_1$, which aims to win the safety game.
+In particular, we want the environment to keep the monitor not in error and the formula not in error, while the controller player must falsify such conjunction to win the reachability game.
+
+\begin{lstlisting}[language=SMV,mathescape=true, caption=Reduction to synthesis problem: safe states for co-safety properties]
+MODULE main
+IVAR
+    $i$ : boolean; $\forall\; i \in I$
+    $o$ : boolean; $\forall\; o \in O$
+VAR
+    phi : formula_monitor(I,O);
+    mon : plant_monitor(I,O);
+INVARSPEC !mon.error & !phi.error
+\end{lstlisting}
+
+We did not use the same boolean expression for both games because the arena is the same, but the game is different. 
+Especially when the game changes, also the controllable variables and uncontrollable variables change.
+If we play a safety game, the environment playing a reachability game, controls the uncontrollable variables, while if we play a reachability game, the environment playing a safety game, controls the uncontrollable variables.
+
+Since we want to synthesize a controller for a plant, the plant is something external and managed by the environment. That is why we need to use two different boolean expressions to state the safe states.
+Established that the plant monitor is managed by the environment, let us consider the two \lstinline{INVARSPEC} cited previously under this interpretation key.
+
+Regarding safety games, the controller wants to make always true \lstinline{!mon.error $\to$ !phi.error}.
+The environment, playing a reachability game and aiming to falsify \lstinline{!mon.error $\to$ !phi.error}, controls the monitor and the only way it has to win is to keep the monitor not in error and attempt to bring the formula monitor to an error state (falsify the formula). 
+Dually the controller, playing a safety game and aiming to satisfy \lstinline{!mon.error $\to$ !phi.error}, cannot win the game by simply falsifying the plant monitor because it is controlled by the environment who keeps it not in an error state, but must succeed in keeping the formula always true.
+In this case, we always fall in the two cases of the truth table of implication which are $\top \implies \top$ (controller player wins) and $\top \implies \bot$ (environment player wins).
+
+Regarding reachability games, the controller wants to make always true \lstinline{!mon.error & !\phi.error}.
+The environment player, playing a safety game and aiming to satisfy \lstinline{!mon.error & !\phi.error}, controls the monitor and the only way it has to win is to keep the monitor not in error and attempt to keep the formula monitor not in error states (satisfying the formula).
+Dually the controller player, playing a reachability game and aiming to falsify \lstinline{!mon.error & !\phi.error}, cannot win the game by falsifying the plant monitor because it is controlled by the environment, who keeps it not in an error state, but must succeed in bringing the formula monitor to an error state (falsifying the formula).
+If we had used the same condition as the one for safety games, we would have ended up solving a game where the environment manages the plant monitor and plays a safety games. To win the game the environment could just bring the monitor to an error state, making always true the boolean expression \lstinline{!mon.error $\to$ !phi.error}.
+For sure that is something we do not want to happen. 
+
+The step number (3) defines the constraint with which enriching the arena to force the new controller to be better than the current one.
+
+In safety games the controller aims to always satisfy a formula by keeping a variable of the plant monitor always in a certain bound \lstinline{u}.
+Therefore, the controller to win must both not bring the formula monitor to an error state and keep the plant monitor variable \lstinline{mon.v < u}.
+Now the environment player has more chances to win since besides trying to bring the formula monitor to an error state, it can also try to bring \lstinline{mon.v} to a value greater than \lstinline{u},
+Therefore, the new boolean expression denoting safe states is \lstinline{!mon.error -> (!phi.error & in_bound)}, where \lstinline{in_bound} is an additional state variable which keeps track of the fact that \lstinline{mon.v < u} always holds.
+Indeed, whenever $mon.v \not\prec u$, the state variable \lstinline{in_bound} becomes false forever.
+
+\begin{lstlisting}[language=smv,mathescape=true, caption=Reduction to synthesis problem: safe states for safety properties with bound]
+MODULE main
+IVAR
+    $i$ : boolean; $\forall\; i \in I$
+    $o$ : boolean; $\forall\; o \in O$
+VAR
+    phi : formula_monitor(I,O);
+    mon : plant_monitor(I,O);
+    in_bound : boolean;
+ASSIGN
+    init(in_bound) := TRUE;
+    next(in_bound) := in_bound & (mon.v < u);
+INVARSPEC !mon.error -> (!phi.error & in_bound)
+\end{lstlisting}
+
+In reachability games, the controller aims to satisfy a formula by keeping a variable of the plant monitor in a certain bound \lstinline{u} until the formula is satisfied.
+Since we play on a safety arena, we define the set of safe states for the environment player, which aims to not bring the formula monitor in an error state (satisfying the formula) or bring \lstinline{mon.v} to a value higher than \lstinline{u}.
+The controller player aims to bring the formula monitor to an error state (falsifying the formula) and keeping \lstinline{mon.v} always in the bound.
+Therefore, the new boolean expression denoting safe states is \lstinline{!mon.error & !(phi.error & in_bound)}.
+
+\begin{lstlisting}[language=smv,mathescape=true,  caption=Reduction to synthesis problem: safe states for co-safety properties with bound, label={lst:in-bound-co-safety}]
+MODULE main
+IVAR
+    $i$ : boolean; $\forall\; i \in I$
+    $o$ : boolean; $\forall\; o \in O$
+VAR
+    phi : formula_monitor(I,O);
+    mon : plant_monitor(I,O);
+ASSIGN
+    init(in_bound) := TRUE;
+    next(in_bound) := in_bound & (mon.v < u);
+INVARSPEC !mon.error & !(phi.error & in_bound)
+\end{lstlisting}
+
+
+Concerning the ASAP semantics, we could implement it exploiting the correlation with best-effort semantics expressed in \autoref{subsec:relation-best-effort-asap}. 
+
+Moreover, we could have a version of the algorithm where the bound is not given in input, but computed by an external evaluation function.
+There are some possibilities to choose the evaluation function, one of these is to solve a parameterized model checking problem.
+Basically, we solve the problem to check whether the given formula is satisfied when the selected plant variable is under a fixed value. 
+In this way, we pick the minimum value making the formula true on the closed-loop. 
+That is a very efficient way to find out the upper-bound for our problem, because we can reduce it to a safety property and so to an invariant verification, which is very efficient as we have already seen in \autoref{sec:ltl-model-checking}. 
+
+\begin{algorithm}[ht]
+    \caption{Optimality test algorithm with evaluation function}
+\begin{algorithmic}[1]
+\Procedure{IsOptimalControllerEval}{$\plant$, $\controller$, $\phi$, $controllables$, $v$, $eval_{\phi,v}$}
+    \State compute $u$ upper-bound from $eval_{\phi,v}(\closedloop{P}{C})$
+    \If{such a upper-bound does not exist}
+        \State Error "$eval_{\phi,v}(\closedloop{P}{C})$ returns no upper-bound"
+    \EndIf
+    \State \Return \Call{IsOptimalController}{$\plant$, $\controller$, $\phi$, $controllables$, $v$, $u$}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}

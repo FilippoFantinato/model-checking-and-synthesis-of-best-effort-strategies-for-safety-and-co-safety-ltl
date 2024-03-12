@@ -1,0 +1,22 @@
+%!TEX root = ../main.tex
+
+\chapter{Original contributions} \label{chapt:original-contributions}
+
+In this chapter we present all original contributions we made.
+
+We formulate the problem to face, first textually and then formally. To do that we present four semantics for both safety and co-safety fragments: bounded-value, best-effort, bounded-steps and As Soon As Possible (ASAP).
+Bounded-value semantics is the basis for best-effort one, while bounded-steps semantics for the ASAP one.
+We prove that the ASAP semantics is just one of the possible instantiations of the best-effort semantics, showing that is possible to simulate the behaviour of ASAP semantics in the best-effort semantics.
+
+The problem we want to deal with is an optimality test on a model, which we consider a closed-loop system for convenience.
+In particular, given a plant, a controller and a safety or co-safety $\ltl$ formula, we want to figure out whether the closed-loop between plant and controller satisfies the formula and whether there exists another controller which does better than the given one according to some optimality principle. 
+The optimality principle chosen by us is the one imposed by best-effort semantics because it is the most general one.
+Then, we present a way to solve the problem by reduction to a reactive synthesis problem.
+
+Finally, we provide a way to generate a non-deterministic strategy for reachability games.
+
+\input{chapters/original-contributions/best-effort-semantics}
+\input{chapters/original-contributions/asap-semantics}
+\input{chapters/original-contributions/problem-formulation}
+\input{chapters/original-contributions/reduction-to-synthesis}
+\input{chapters/original-contributions/reachbility-strategy-extraction}

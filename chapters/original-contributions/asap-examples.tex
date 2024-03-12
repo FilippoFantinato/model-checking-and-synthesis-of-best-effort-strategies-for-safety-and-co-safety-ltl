@@ -1,0 +1,25 @@
+%!TEX root = ../../main.tex
+
+\subsection{Notable examples}
+% Esempi notevoli che mostrino l'utilità e le potenzialità della semantics best-effort e ASAP. 
+
+In this sub-section we give some notable use-cases of bounded-value semantics and ASAP semantics using $\ebrltl$ to express properties.
+
+The first example is a typical bounded response requirement, where whenever a request ($r$) is issued, the controller has to answer a grant ($g$) at most $5$ time units after the request.
+\begin{flalign*}
+    \phi_1 \equiv \ltlG{(\ltlImpl{r}{\ltlFbounded{g}{[0,5]}})}
+\end{flalign*}
+
+In $\phi_1$ there is already a bound on the maximum number of steps of $g$, but with our semantics we could be even tighter without changing the formula syntax, such as forcing the grant to be issued immediately or in 2 steps.
+
+\begin{flalign*}
+\closedloop{P}{C} \modelsUB{0}{} \ltlG{(\ltlImpl{r}{\ltlFbounded{g}{[0,5]}})} \\
+\closedloop{P}{C} \modelsUB{2}{} \ltlG{(\ltlImpl{r}{\ltlFbounded{g}{[0,5]}})}
+\end{flalign*}
+
+Some other examples could be the ones presented for the best-effort semantics.
+Considering the car presented in the previous section, we could force it to reach the goal in some bound of steps.
+
+\begin{flalign*}
+    \closedloop{\text{M}}{\text{D}} \modelsUB{13}{} \ltlF{(\ltlAnd{\text{M.x} = \text{D.goal\_x}}{\text{M.y} = \text{D.goal\_y}})}
+\end{flalign*}

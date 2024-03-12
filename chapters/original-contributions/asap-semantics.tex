@@ -1,0 +1,66 @@
+%!TEX root = ../../main.tex
+
+\section{As Soon As Possible (ASAP) semantics}
+In this section we introduce another semantics which captures the behaviour of systems that must response promptly.
+This semantics is called As Soon As Possible (ASAP) semantics and forces a formula to satisfy a state-sequence in as few steps as possible.
+To define the ASAP semantics we exploit another semantics, called \textit{bounded-steps semantics}, which forces a formula to be satisfied in a certain bound of time.
+Similarly to the bounded-value semantics, we define the bounded-steps semantics for both co-safety and safety fragments of $\ltl$. 
+
+In the co-safety fragment we say that a formula is satisfied by a state-sequence at position $i$ with maximum number of steps $u$, if such formula is satisfied in the prefix from $i$ to $u+i$.
+
+\begin{definition}[Co-safety LTL bounded-steps semantics]
+Let $\phi$ be a formula belonging to the co-safety fragment, $\sigma$ a state-sequence evaluated at position $i$ and $u \in \Nat$ maximum number of steps.
+We say that $\sigma$ satisfies $\phi$ at position $i$ in $u$ steps, denoted as $\sigma,i \modelsUB{u}{} \phi$, if and only if
+\begin{flalign*}
+    \sigma[i,u+i] \models \phi
+\end{flalign*}
+We say that $\sigma \modelsUB{u}{} \phi$ if and only if $\sigma,0 \modelsUB{u}{} \phi$.
+\end{definition}
+
+In the safety fragment the definition is a little bit different.
+First of all, we name the number of steps already performed as depth.
+The difference between the upper bound and the depth gives us the number of steps that we are still allowed to do.
+We need to understand what means for a state-sequence satisfying a formula in $u$ steps.
+Here there are two possible interpretations: either defining such semantics similar to the semantics induced by the full-bounded dialect of $\ltl$ ($\fbltl$), therefore evaluating a property over a prefix from $i$ to $u+i$ like in the co-safety case, or evaluating over a finite prefix only formulas which are both in co-safety and safety.
+In the first case we would define the semantics of formulas such as $\ltlGbounded{\phi}{[d,u]}$, $\ltlFbounded{\phi}{[d,u]}$ and $\ltlUbounded{\phi_1}{\phi_2}{[d,u]}$, but as we have already said, it is the same semantics induced by the full-bounded dialect of $\ltl$. 
+Instead, we have preferred to investigate the latter case, where the semantics evaluates only both safety co-safety formulas over a prefix from $d$ to $u$. 
+Analogously to the bounded-value semantics, the bounded-steps semantics is defined inductively on the structure of the formula to evaluate.
+Basic cases are \textit{boolean propositions}, \textit{negation} of a boolean proposition, \textit{or} and \textit{and} operators, while more interesting cases are the \textit{next} and \textit{yesterday} temporal operators.
+
+\begin{definition}[Safety LTL bounded-steps semantics]
+Let $\phi$ be a formula belonging to the safety fragment, $\sigma$ a state-sequence evaluated at position $i$, $u \in \Nat$ maximum number of steps and $d \in \Nat$ be the depth such that $d \leq u$.
+We say that $\sigma$ satisfies $\phi$ at position $i$ in $u$ steps with depth $d$, denoted as $\sigma,i \modelsUB{u}{d} \phi$, if and only if
+\begin{flalign*}
+&\sigma,i \modelsUB{u}{d} p &\iff& & & p \in \sigma_i \land 0 \leq d \leq u \\
+&\sigma,i \modelsUB{u}{d} \ltlNeg{p} &\iff& & & p \not\in \sigma_i \land 0 \leq d \leq u \\
+&\sigma,i \modelsUB{u}{d} \ltlOr{\phi_1}{\phi_2} &\iff& & & \text{$\sigma,i \modelsUB{u}{d} \phi_1$ or $\sigma,i \modelsUB{u}{d} \phi_2$} \\
+&\sigma,i \modelsUB{u}{d} \ltlAnd{\phi_1}{\phi_2} &\iff& & & \text{$\sigma,i \modelsUB{u}{d} \phi_1$ and $\sigma,i \modelsUB{u}{d} \phi_2$} \\
+&\sigma,i \modelsUB{u}{d} \ltlX{\phi} &\iff& & & \sigma,i+1 \modelsUB{u}{d+1} \phi \\
+&\sigma,i \modelsUB{u}{d} \ltlY{\phi} &\iff& & & \text{$i>0$ and $\sigma,i-1 \modelsUB{u}{d-1} \phi$} \\
+&\sigma,i \modelsUB{u}{d} \ltlR{\phi_1}{\phi_2} &\iff& & & \text{either for all $j \geq i. \; \sigma,j \modelsUB{u}{d} \phi_2$,} \\
+& & & & & \text{or there exists $j \geq i$ such that $\sigma,j \modelsUB{u}{d} \phi_1$ and} \\
+& & & & & \text{$\sigma,w \modelsUB{u}{d} \phi_2$ for all $i \leq w \leq j$} \\
+&\sigma,i \modelsUB{u}{d} \ltlS{\phi_1}{\phi_2} & \iff & & & \text{there exists $0 \leq j \leq i$ such that $\sigma,j \modelsUB{u}{d} \phi_2$ and} \\
+& & & & & \text{$\sigma,w \modelsUB{u}{d} \phi_1$ for all $j < w \leq i$} \\
+&\sigma,i \modelsUB{u}{d} \ltlT{\phi_1}{\phi_2} & \iff & & & \text{either for all $0 \leq j \leq i. \; \sigma,j \modelsUB{u}{d} \phi_2$,} \\
+& & & & & \text{or there exists $j \in [0,i]$ such that $\sigma,j \modelsUB{u}{d} \phi_1$ and} \\
+& & & & & \text{$\sigma,w \modelsUB{u}{d} \phi_2$ for all $j \leq w \leq i$}
+\end{flalign*}
+We say that $\sigma,i \modelsUB{u}{} \phi$ if and only if $\sigma,i \modelsUB{u}{0} \phi$, while $\sigma \modelsUB{u}{} \phi$ if and only if $\sigma, 0 \modelsUB{u}{} \phi$.
+\end{definition}
+
+After having defined the bounded-steps semantics, we can finally present the \textit{ASAP semantics}, thanks to which we capture the fact to satisfy a formula in as few number of steps as possible.
+The ASAP semantics is defined exploiting bounded-steps semantics and we require that the upper bound is as tight as possible, therefore it is the least upper bound of the bounds satisfying bounded-steps a formula.
+
+\begin{definition}[ASAP semantics]
+Let $\phi$ be a formula belonging to either the safety or co-safety fragment, $\sigma$ a state-sequence at position $i$ and $u \in \Nat$ maximum number of steps.
+We say that $\sigma$ satisfies $\phi$ at position $i$ as soon as possible in $u$ steps, denoted as $\sigma, i \modelsASAP{u}{} \phi$, if and only if
+\begin{flalign*}
+    \sigma, i \modelsUB{u}{} \phi \land 
+    \sigma, i \not\modelsUB{u-1}{} \phi
+\end{flalign*}
+We say that $\sigma \modelsASAP{u}{} \phi$ if and only if $\sigma, 0 \modelsASAP{u}{} \phi$.
+\end{definition}
+
+\input{chapters/original-contributions/asap-examples}
+\input{chapters/original-contributions/asap-best-effort-same-semantics}

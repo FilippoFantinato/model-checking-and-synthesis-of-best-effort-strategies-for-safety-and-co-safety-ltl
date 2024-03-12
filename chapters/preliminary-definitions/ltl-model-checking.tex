@@ -1,0 +1,146 @@
+%!TEX root = ../../main.tex
+
+\section{Automaton-based LTL Model Checking}
+\label{sec:ltl-model-checking}
+
+In this section we merge B{\"u}chi automata and Linear Temporal Logic, presenting what an abstraction of a system is, the basic idea of Automaton-based LTL Model Checking and some useful definitions for later.
+Automaton-based LTL Model Checking is the technique to verify a property $\phi$ expressed in $\ltl$ on a model of a system introduced for the first time by \cite{VW86}. 
+
+Given a system, a model represents an abstraction of it. 
+The model of a system is designed as a Transition System (TS), which is a mathematical model to describe the potential behaviour of discrete systems. It consists of states and transitions between states, which may be labeled with labels chosen from a set.
+Transition Systems differ from finite-state automata in several ways: the set of states is not necessarily finite, the set of transitions is not necessarily finite and no start and final states are given. 
+The most widely used type of Transition Systems is Labeled Transition Systems, which consists of Transition System with an additional labelling function mapping each node with a word over an alphabet $AP$.
+
+Another way to design the model of a system is by Moore Machine or Mealy Machine. Both machines are finite-state machines, but differently from other finite automata that determine the acceptance of a particular string in a given language, they determine the output against given input. The formalization of the two machines is quite the same: a set of states, an initial state, input and output alphabets, a transition function and an output function. They differ only in the output function: in Mealy Machine the output function value depends on the current state and the current input symbol, while in Moore Machine the output function value depends only on the current state.
+
+In this section we use LTS as main model, but we wanted to give the definition of Moore Machine and Mealy Machine since we are going to cite them in later chapters.
+
+\begin{definition}[\cite{principles-cps} Labeled Transition System (LTS)]
+A Labeled Transition System is a tuple $\model = \tuple{S, \to, I, AP, L}$ consisting of: (i) a finite set $S$ of states; (ii) a transition relation $\to \subseteq S \times S$; (iii) a set $I \subseteq S$ of initial states; (iv) a set $AP$ of atomic propositions (alphabet); (v) a labeling function $L \colon S \to 2^{AP}$.
+\end{definition}
+
+\begin{definition}[\cite{principles-cps} Moore Machine]
+A Moore Machine is a tuple $\model = \tuple{S,s_0,I,O,\delta,\lambda}$ consisting of: (i) a finite set $S$ of states; (ii) an initial state $s_0 \in S$; (iii) a finite set called input alphabet; (iv) a finite set called output alphabet; (v) a transition function $\delta \colon S \times I \to S$; (vi) an output function $\lambda \colon S \to O$.
+\end{definition}
+
+\begin{definition}[\cite{principles-cps} Mealy Machine]
+A Mealy Machine is a tuple $\model = \tuple{S,s_0,I,O,\delta,\lambda}$ consisting of: (i) a finite set $S$ of states; (ii) an initial state $s_0 \in S$; (iii) a finite set called input alphabet; (iv) a finite set called output alphabet; (v) a transition function $\delta \colon S \times I \to S$; (vi) an output function $\lambda \colon S \times I \to O$.
+\end{definition}
+
+From a set $s$ in a transition system we can define: the set of direct successors, i.e. the states reachable in one step; the set of direct predecessors, i.e. the states from which $s$ can be reached by one step; the set of states reachable by an undefined number of steps; the set of states from which $s$ can be reached by an undefined number of states; the set of states reachable starting from the initial states.
+
+\begin{definition}[\cite{principles-cps} $Pre$, $Post$ and $reachability$ sets]
+Let $\model = \tuple{S, \to, I, AP, L}$ be a Labeled Transition System and a state $s \in S$.
+\begin{itemize}
+    \item The set $Post(s)$ of direct successors of $s$ is defined by $Post(s) = \set{s' \in S \; | \; s \to s'}$.
+    \item The set $Pre(s)$ of direct predecessors of $s$ is defined by $Pre(s) = \set{s' \in S \; | \; s' \to s}$.
+    \item The set $Post^*(s)$ consists of the states reachable in the state graph from $s$. Given $C \subseteq S$, the set $Post^*(C)$ is defined by $Post^*(C) = \bigcup_{s \in C} Post^*(s)$.
+    \item The set $Pre^*(s)$ consists of the states reachable in the state graph from $s$. Given $C \subseteq S$, the set $Pre^*(C)$ is defined by $Pre^*(C) = \bigcup_{s \in C} Pre^*(s)$.
+    \item The set $Reach(TS) = Post^*(I)$ is the reachability set of TS from $I$.
+\end{itemize}
+\end{definition}
+
+\begin{definition}[\cite{principles-cps} Paths and Traces sets]
+Let $\model = \tuple{S, \to, I, AP, L}$ be a Labeled Transition System. 
+\begin{itemize}
+    \item A finite path fragment is a finite state sequence $\sequence{s_0,s_1,\dots,s_n}$ for some $n\geq 0$ such that $s_i \in Post(s_{i-1})$ for all $i < 0 \leq n$.
+    \item An infinite path fragment is an infinite state sequence $\sequence{s_0,s_1,\dots}$ such that $s_i \in Post(s_{i-1})$ for all $i > 0$.
+    \item A path fragment is initial if $s_0 \in I$. 
+    \item The set $Paths(\model)$ defines all the initial paths of $\model$.
+    \item A trace of an infinite path fragment is the sequence of sets of atomic propositions $\sequence{L(s_0), L(s_1), \dots} \in Traces(TS)$.
+    \item The set $Traces(\model)$ defines all traces of all paths in $Paths(\model)$.
+\end{itemize}
+\end{definition}
+
+After having described what a model of a system is, let us go on speaking about properties of a model. 
+Given a model $\model$, we want to specify admissible traces. 
+This can be done exploiting linear-time (LT) property over the atomic propositions $AP$, that is a subset of $(2^{AP})^\omega$. 
+Since linear-time properties are hard to describe, we may need of a logic to describe them in a fancier way. 
+Here $\ltl$ comes in play, because it is a logic allowing to describe linear time properties over the atomic proposition $AP$. 
+When we speak about linear-time property via $\ltl$, it is useful recognizing the set of words described by $\phi$.
+
+\begin{definition}[\cite{principles-cps} Words of a $\ltl$ formula]
+Let $\phi$ be a $\ltl$ formula over $AP$, the set $Words(\phi)$ is defined as all the words where $\phi$ holds, i.e. $Words(\phi) = \set{\sigma \in (2^{AP})^\omega \; | \; \sigma \models \phi}$.
+\end{definition}
+
+LTL Model Checking is the task to say whether a formula $\phi$ is satisfied by a model $\model$. If that is case, then yes must be returned, otherwise a counterexample must be returned as the proof of $\model \not\models \phi$.
+The underlying idea under Automaton-based LTL Model Checking is to verify whether all traces of $\model$ are subset of word of $\phi$, namely $\model \models \phi \iff Traces(TS) \subseteq Words(\phi)$. 
+That is because we can say that $\model \models \phi$ only if $\phi$ holds no matter the trace undertaken by any execution of $\model$. 
+Starting from this idea we deduce that we could reason even in a different way, that is there is no path on which the negation of $\phi$ holds. 
+If such path exists, then it is a counterexample for $\model \models \phi$.
+From here we can also do a next step. Now we are speaking about traces and words, but we can do the same reasoning speaking about automata.
+Actually, for each $\ltl$ formula $\phi$ there exists a related automaton such that the language of $\phi$ and the language of such automaton are the same. 
+This can be done by converting $\phi$ into a Generalized B{\"u}chi Automaton and then into a Non-deterministic B{\"u}chi Automaton. 
+This unlocks the possibility to express the problem using automata. 
+To perform Automaton-based LTL Model Checking we need to follow these steps:
+\begin{itemize}
+    \item construct the B{\"u}chi Automaton $\automaton_{\ltlNeg{\phi}}$ corresponding to the negated specification;
+    \item build the product automaton between $\model$ and $\automaton_{\ltlNeg{\phi}}$;
+    \item search for accepting cycles in the composition $\model \times \automaton_{\ltlNeg{\phi}}$. If there exists one cycle, then it means that $\ltlNeg{\phi}$ is satisfied, otherwise it means that $\phi$ is satisfied. In other words, we look for a point in the time from which is not possible to visit accepting states infinitely often.
+\end{itemize}
+Following we can see all previous concepts formally.
+
+\begin{definition}[\cite{principles-cps} Counterexample]
+A counterexample $\pi$ of a $\ltl$ formula $\phi$ over a LTS $\model$ is a path (even infinite) such that $\pi \not\models \phi$.
+\end{definition}
+
+\begin{theorem}[\cite{VW86}]
+For any $\ltl$ formula $\phi$ over $AP$, there exists a NBA $\automaton_{\phi}$ over $2^{AP}$ such that $Words(\phi) = \omegalang{(\automaton_{\phi})}$.
+\end{theorem}
+
+\begin{definition}[\cite{principles-cps} Product automaton between LTS and NBA]
+Let $\model = \tuple{S, \to, I, AP, L}$ be a LTS and $\automaton = \tuple{Q,\Sigma,\delta,Q_0,F}$ with $\Sigma = 2^{AP}$ and $Q_0 \cap F = \emptyset$. Their product is defined as the transition system $\model \times \automaton = \tuple{S',\to',I',AP',L'}$ where: 
+\begin{enumerate}[label=\roman*.]
+    \item $S' = S \times Q$;
+    \item $\to'$ is defined by 
+    \[ \infer{s \to t \land q \xrightarrow{L(t)} p}{\tuple{s,q} \to' \tuple{t,p}} \]
+    \item $I' = \set{\tuple{s_0, q} \; | \; s_0 \in I \land \exists q_0 \in Q_0 \; : \; q_0 \xrightarrow{L(s_0)} q}$;
+    \item $AP' = Q$; 
+    \item $L' \colon S \times Q \to 2^Q$ with $L'(\tuple{s,q}) = {q}$.
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Automaton-based $\ltl$ model checking]
+We say that $\model$ satisfies $\phi$, denoted as $\model \models \phi$, if for each path $\pi$ of $\model$ it holds that $\pi \models \phi$, i.e. if $Traces(\model) \subseteq Words(\phi)$.
+Equivalently, $\model \models \phi$ if and only if there does not exist a path $\pi$ such that $\model \models \ltlNeg{\phi}$. If such path $\phi$ exists, it is a counterexample for $\model$ over $\phi$. More formally:
+\begin{flalign*}
+\model \models \phi & \iff Traces(\model) \subseteq Words(\phi) \\
+                    & \iff Traces(\model) \subseteq ((2^{AP})^\omega \setminus Words(\phi)) = \emptyset \\
+                    & \iff Traces(\model) \cap Words(\phi) = \emptyset \\
+                    & \iff Traces(\model) \cap Words(\automaton_{\ltlNeg{\phi}}) = \emptyset \\
+                    & \iff \model \times \automaton_{\ltlNeg{\phi}} \models \ltlF{\ltlG{(\ltlNeg{F})}}
+\end{flalign*}
+where $F$ is the set of accepting states of $\automaton_{\ltlNeg{\phi}}$ and $\model \times \automaton_{\ltlNeg{\phi}}$ is the product automata between LTS and NBA.
+\end{definition}
+
+As we have already said in the previous section, an invariant property is a Boolean expression which must hold forever.
+The invariant model checking problem, also called invariant verification, is the problem to check whether the Boolean expression holds in all reachable states of the model.
+
+\begin{definition}[Invariant model checking]
+We say that $\model$ satisfies $\phi$ invariant property, denoted as $\model \models_{inv} \phi$, if and only if at any position $i$ of any reachable state $s$, it holds $s_i \models \phi$.
+\end{definition}
+
+If we consider safety properties, we can reduce their model checking problem to invariant verification \cite{KV99}.
+When we negate a safety property, we end up having a co-safety property for which it is enough to find a finite-trace satisfying it. Such finite trace is called informative prefix because it falsifies the original safety property.
+The idea behind this method is to provide an automaton of the negated formula and an invariant property on $\phi$ such that all paths falsifying the invariant property on the synchronous product between model and such automaton are informative prefixes (bad-prexifes) of the safety formula. 
+Invariant verification is more efficient than usual Automaton-Based LTL model checking and so it is convenient to make this reduction.
+
+\begin{theorem}[\cite{KV99} Invariant verification from safety properties]
+We say that $\model$ satisfies $\phi$ safety property, denoted as $\model \models \phi$, if and only if
+\begin{flalign*}
+\model \models \phi \iff \model \times \automaton_{\ltlNeg{\phi}}^{saf} \models_{inv} \neg F
+\end{flalign*}
+where $F$ is the set of accepting states of $\automaton_{\ltlNeg{\phi}}$
+\end{theorem}
+
+Another problem related to model checking is parameter synthesis in parametric systems.
+Parametric systems arise in many application domains from real-time systems to software to cyber-physical systems. In these applications, the system is often part of a larger environment and the designer has to define the system relative to some unknown parameters of the environment. The use of parameters is fundamental in the early phases of the development gibing the possibility to explore different design choices.
+A key challenge for the design of parametric systems is the estimation of the parameter valuations that guarantee the correct behaviour of the system.
+Manual estimation of these values is time consuming therefore a fundamental problem is to automatically synthesize the maximal region of parameter valuations for which the system satisfies some properties. In \cite{CGMT13} is presented an approach to solve parameter synthesis with the algorithm IC3, one of the major recent breakthroughs in SAT-bases model checking and lately extended to the SMT case.
+We will not delve into this topic further, but we will use this technique later.
+
+Before going on to the next section, we would like to introduce an important concept about models.
+In practical applications, the model of a system is not given as single block, but it is common to have two split models: one for the plant ($P$) and another for the controller ($C$).
+The model checking procedure is performed on their closed-loop $P \times C$, that is their synchronous composition where the output value of plant is sent in input to the controller and the controller output is sent in input to the plant.
+This type of modelling is widely used and it is useful to split the behavioural logic (controller) from the actual system (plant). 
+Basically, plant defined the constraints of the system while controller reads the current state of the system and determine its next state. 

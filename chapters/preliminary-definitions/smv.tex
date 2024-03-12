@@ -1,0 +1,130 @@
+%!TEX root = ../../main.tex
+
+\section{The SMV language}
+\label{sec:smv}
+
+The algorithms presented in this thesis have been implemented in the model checker nuXmv, a symbolic model checker for the analysis of synchronous finite-state and infinite-state systems \cite{CCD14}. It implements state-of-the-art algorithms for model checking, using SMV as modeling and specification language.
+
+SMV is a language to describe finite state synchronous models. 
+The code is divided in modules, which is a template for a state transition system and can be used to model multiple components in a system through multiple instances. 
+Instances of modules can be used in the definitions of other modules, giving the possibility to define hierarchical models of complex systems.
+Each model is a module, defined by the keyword \lstinline{MODULE} and a name followed by a list of the module input variables. State variables determine the state space of a model and they are defined in a list beginning with the keyword \lstinline{VAR}. 
+The SMV language provides Booleans, enumerative, bounded integers and words (arrays of Booleans which allow bitwise logical and arithmetic operations) as data type and arrays.
+Each state variable requires the definition of its initial state and next state (transitions), by the statements \lstinline{init(name) := expression} and \lstinline{next(name) := expression}.
+The transitions and initial state may be non-deterministic.
+Additional variables can be defined following the keyword \lstinline{DEFINE}.
+The expressions are expressed by state variables, input variables and the next value of a variable with \lstinline{next(var)}. 
+The allowed operators are: 
+\begin{flalign}
+& +,\; -,\; *,\; /,\; mod \tag{Arithmetical operators} \\ 
+& <,\; \leq,\; >,\; \geq,\; =,\; \neq \tag{Comparison operators} \\
+& \&,\; |,\; !,\; xor,\; \to,\; \iff \tag{Logical operators}
+\end{flalign}
+
+An interesting expression is the conditional expression, defined by
+\begin{lstlisting}[language=smv, mathescape=true]
+case 
+    $guard_1$ : $expression_1$; $\dots$ $guard_n$ : $expression_n$; 
+    TRUE: $expression_{n+1}$; 
+esac
+\end{lstlisting}
+where $guard_1 \dots guard_n$ are guards sequentially evaluated. If a $guard_i$ is true, then the conditional expression is evaluated to $expression_i$, otherwise is evaluated to $expression_{n+1}$.
+
+Instances of modules can be used to build other modules and are instantiated by variable definitions. A module can be instantiated more the once and one module in the SMV model must have the name \lstinline{main}. This is the top module in
+the composition hierarchy. The specifications to be verified can be written in $CTL$, by the keyword \lstinline{CTLSPEC}, or $\ltl$, by the keyword \lstinline{LTLSPEC}, or invariant ones, by the keyword \lstinline{INVAR}. 
+Invariant specifications are Boolean expressions that must hold forever.
+
+An example showing what we explained previously is the ferryman puzzle.
+Briefly, there is a ferryman who wants to cross a river with three things: a cabbage, a goat and a wolf. The difficulty lies on making everything cross the river under some constraints:
+\begin{itemize}
+    \item ferryman carries only one passenger i.e. ferryman plus another thing;
+    \item goat will eat cabbage when left alone;
+    \item wolf will eat goat.
+\end{itemize}
+We split the implementation in plant and controller modules.
+The first module to be designed is the plant and, as already said in \autoref{sec:ltl-model-checking}, the plant model is meant to define the constraint of the system. 
+In particular, we define how all four elements behave. 
+There are four state vars each of which can assume value either \lstinline{right} or \lstinline{left}. 
+There is only one input variable, i.e. \lstinline{move}, defining the move to perform on the plant. 
+The move can be: \lstinline{c}, carry cabbage, \lstinline{g}, carry goat, \lstinline{w}, carry wolf, and \lstinline{e}, carry nothing.
+Afterwards, we set the initial state of each state variable to \lstinline{right}, i.e. the right side of the river. 
+The next transition of goat, wolf and cabbage is defined as a case expression: if the move is not to carry that element and the element has the same position as man, then nothing changes; otherwise, that is the move is to carry such element and the man has the same position, we change the position of such element, so if it is on the right, the next transition brings it to the left, and vice-versa.
+In order to make the code more readable, we describe some defines: \lstinline{no_carry}, \lstinline{carry_goat}, \lstinline{carry_wolf}, \lstinline{carry_cabbage},  \lstinline{safe_state} defining the condition for a state to be a safe state, i.e. whenever the goat and the wolf or the goat and the cabbage are in the same position, the man has the same position as goat to keep someone from getting eaten, and \lstinline{goal}, i.e. all elements are at the left bank.
+
+\begin{lstlisting}[language=smv, caption=Ferryman example: plant module]
+MODULE plant(move)
+  VAR
+    man     : {right, left};
+    wolf    : {right, left};
+    goat    : {right, left};
+    cabbage : {right, left};
+  DEFINE
+    no_carry      := move=e;
+    carry_goat    := move=g;
+    carry_wolf    := move=w;
+    carry_caggabe := move=c;
+    safe_state := goat = wolf | goat = cabbage -> goat = man;
+    goal := cabbage = left & goat = left & wolf = left & man = left;
+  ASSIGN
+    init(man)     := right;
+    init(goat)    := right;
+    init(wolf)    := right;
+    init(cabbage) := right;
+  ASSIGN
+    next(cabbage) := case
+      !(carry_caggabe & cabbage=man) : cabbage;
+      cabbage=right : left;
+      cabbage=left  : right;
+    esac;
+    next(goat) := case
+      !(carry_goat & goat=man) : goat;
+      goat=right : left;
+      goat=left  : right;
+    esac;
+    next(wolf) := case
+      !(carry_wolf & wolf=man) : wolf;
+      wolf=right : left;
+      wolf=left  : right;
+    esac;
+    next(man) := case
+      man=right : left;
+      man=left  : right;
+    esac;
+\end{lstlisting}
+
+The controller is meant to observe the plant state by input variables and chose the next move in order to reach the goal passing only through safe states.
+\begin{lstlisting}[language=smv, caption=Ferryman example: controller module]
+MODULE controller(cabbage,goat,wolf,man)
+VAR
+  move : {c, g, w, e};
+ASSIGN
+  move = case
+      man=right: case
+          man=cabbage & man=goat & man=wolf: g;
+          man=cabbage & man=goat: c;
+          man=cabbage & man=wolf: w;
+          man=cabbage: c;
+          man=goat & man=wolf: w;
+          man=goat : g;
+          man=wolf : w;
+          TRUE : e;
+        esac;
+      TRUE: case
+          man=cabbage & man=goat: c;
+          man=goat & man=wolf: g;
+          TRUE: e;
+      esac;
+    esac;
+\end{lstlisting}
+
+Last but not least, the main module set the closed-loop between plant and controller.
+To check the correctness of the system we may check whether the $\ltl$ formula \lstinline{p.safe_state U p.goal}, that is until we do not reach the goal state, all visited states were safe. 
+
+\begin{lstlisting}[language=smv, caption=Ferryman example: main module]
+MODULE main
+VAR
+  p: plant(c.move);
+  c: controller(p.cabbage,p.goat,p.wolf,p.man);
+LTLSPEC
+  p.safe_state U p.goal
+\end{lstlisting}

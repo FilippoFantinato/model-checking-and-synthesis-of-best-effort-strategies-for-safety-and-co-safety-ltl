@@ -1,0 +1,1435 @@
+%!TEX root = ../../main.tex
+
+\subsection{Relation between best-effort and ASAP semantics} \label{subsec:relation-best-effort-asap}
+During the definition of ASAP semantics, you could have noticed that there exists a relation with the best-effort semantics using as strict partially ordered set $\tuple{\Nat,<}$.
+Indeed, ASAP semantics can be formulated through best-effort semantics and in this section we prove it. As usual, we split the proof according to the type of formulas, so a proof for co-safety fragment and another one for safety fragment.
+The idea behind the two proofs is the same, that is adding a variable to the plant which simulates the behaviour of the ASAP semantics.
+Note that for convenience and clarity, we define the behaviour of those variables by SMV language.
+
+Regarding the co-safety fragment of $\ltl$, that is for sure the easiest case because we evaluate formulas on prefixes of state-sequences.
+Moreover, both best-effort and ASAP semantics are not defined inductively but through their behaviour on a finite prefix of a state-sequence.
+In this case we add a variable named steps which is incremented by $1$ at every step and bound on such variable. 
+In this way we can keep up with the steps taken and see whenever we exceed the maximum number of steps without the formula being true.
+
+\begin{theorem}[Best-effort and ASAP equivalence for co-safety formulas]
+\label{thm:asap-best-effort-co-safety}
+Let $\closedloop{\plant}{\controller}$ be a closed-loop model of a system with plant and controller, $\sigma$ be any trace of such model evaluated at position $i$, $\phi$ a formula belonging to co-safety fragment of $\ltl$ and $u \in \Nat$ be a constant number.
+We show that, by adding the variable $\plant.steps$ to the plant, the following statement holds
+\begin{flalign*}
+   \sigma, i \modelsBE{steps < u+i+1} \phi \iff
+   \sigma, i \modelsASAP{u+i}{} \phi
+\end{flalign*}
+
+\begin{proof}
+First of all we define the behaviour of the new state variable $steps$ in the following way: initially $steps$ has value $i$ and at each step it is increased by $1$.
+\begin{lstlisting}[language=smv,mathescape=true]
+ASSIGN
+    init(steps) := i;
+    next(steps) := steps + 1;
+\end{lstlisting}
+
+\begin{itemize}
+\item ($\sigma, i \modelsBE{steps < u+i+1} \phi \implies \sigma, i \modelsASAP{u+i}{} \phi$)
+
+By hypothesis we know that (1) $\sigma,i \modelsBV{steps < u+i+1} \phi$ and (2) $\sigma,i \not\modelsBV{steps < u+i} \phi$.
+By definition of bounded-value semantics we know that $\exists j \geq i$ such that $\sigma[i,j] \models \sigma$, $\sigma[i,j-1] \not\models \sigma$ and $\forall k \in [i,j].\; \sigma_k.steps < u+i+1$.
+Since the variable $\sigma.steps$ keeps up with the number of steps performed by the model, it is easy to see that, when $\sigma,i \modelsBE{steps < u+i+1} \phi$, has been performed exactly $u+i$ steps and therefore is equivalent to $\sigma[i,u+i] \models \phi$.
+More formally: (3) such $j$ exists and it is $j=u+i$, (4) $\sigma[i,u+i] \models \sigma$, (5) $\sigma[i,u+i-1] \not\models \phi$ and $\forall k \in [i,u+i].\; \sigma_k.steps < u+i-1$.
+
+By (4) and (5) and definition of ASAP semantics, we claim $\sigma,i \modelsASAP{u+i}{} \phi$
+
+\item ($\sigma,i \modelsASAP{u+i}{} \phi \implies \sigma,i \modelsBE{steps < u+i+1} \phi$)
+
+By hypothesis we know that $\sigma,i \modelsUB{u+i}{} \phi$ and $\sigma,i \not\modelsUB{u+i-1}{} \phi$, from which we derive (1) $\sigma[i,u+i] \models \phi$ and (2) $\sigma[i,u+i-1] \not\models \phi$, by definition of bounded-steps semantics.
+We note that the variable $\sigma.steps$ keeps up with the number of steps performed by the models.
+For this reason it is easy to see that (3) $\forall k \in [i,u+i].\; \sigma_k.steps < u+i+1$, since $steps$ at position $\sigma_k$ has exactly value $k$.
+By (1), (2), (3) and definition of bounded-value semantics, we derive (4) $\sigma,i \modelsBV{steps < u+i+1} \phi$.
+We note that in (2) the statement is falsified just because $\phi$ is falsified in the prefix, i.e. when $steps$ is always less than or equal to $u+i$, concluding (5) $\sigma,i \not\modelsBV{steps < u+i} \phi$.
+
+Therefore, by (4), (5) and definition of best-effort semantics, we claim $\sigma,i \modelsBE{steps < u+i+1} \phi$. 
+\end{itemize}
+\end{proof}
+\end{theorem}
+
+As we told previously, the safety case is the hardest one but also the most interesting between the two cases.
+Here we cannot simply set some counters and force them to count the number of steps already performed, because the semantics is defined inductively on the structure of $\phi$.
+Therefore, the variables system which allows us to simulate the behaviour of the ASAP semantics is more complex.
+The underlying idea is to add to the plant the deterministic monitor of $\phi$, explained in \autoref{sec:ebr-ltl-synthesis}, to monitor which sub-formulas are true at each step. 
+Then we associate at each sub-formula a cost which corresponds to minimum number of next minus number of yesterday in such sub-formula required to make it true.
+Therefore, the formula $\phi$ has a cost which depends on the formula itself and by the costs of sub-formulas which are true.
+The cost of a formula is the dual of the concept of depth. 
+Indeed, the depth in ASAP semantics for safety formulas reaches its maximum value when it reaches the propositional case, where we check whether we went over the maximum number of steps or not, and the minimum value at the beginning with $\phi$. On the contrary, the cost of a formula reaches the maximum value at the beginning with $\phi$ and its minimum value when it reaches the propositional case.
+In the latter case we perform the check the bound on the cost of $\phi$.
+
+\begin{theorem}[Best-effort and ASAP equivalence for safety formulas]
+\label{thm:asap-best-effort-safety}
+Let $\closedloop{\plant}{\controller}$ be a closed-loop model of a system with plant and controller, $\sigma$ be any trace of such model evaluated at position $i$, $\phi$ a formula belonging to the safety fragment of $\ltl$ and $u \in \Nat$ be a constant number.
+We show that by adding the variable $\plant.cost_\phi$ to the plant, the following statement holds 
+\begin{flalign*}
+   \sigma,i \modelsBE{cost_\phi < u+1} \phi \iff 
+   \sigma,i \modelsASAP{u}{u-cost_\phi} \phi
+\end{flalign*}
+
+\begin{proof}
+From \cite{geatti-2021-09} we know that there exists a formula $\phi' \in \pastebrltl$ such that $\phi \equiv \phi'$ for any safety formula $\phi$.
+From the work made in \cite{geatti-2020-08} we know that it is possible to create a Deterministic Safety Automaton $\automaton$ such that $\omegalang{(\automaton)} \equiv \omegalang{(\phi')}$. 
+In such automaton we have a state variable for each sub-formula of the type $\ltlXexp{\psi_1}{i}$, $\ltlXexp{\ltlG{\psi_1}}{i}$ and $\ltlXexp{(\ltlR{\psi_1}{\psi_2})}{i}$, where $\psi_1,\psi_2 \in \fpltl$. Such state variables check the falsity of those sub-formulas, therefore one of them becomes true whenever the monitoring sub-formula is false.
+Moreover, we have a state variable for each full-past sub-formula checking the truthfulness of a sub-formula, therefore one of them becomes true whenever the monitoring sub-formula is true.
+
+At this point, we define a state variable corresponding to the cost of a sub-formula monitored by other state variables.
+The state variables that we add are: 
+\begin{itemize}
+    \item $C_P$: the set of state-variables with the cost of a full past sub-formula (full-past layer of $Canonical Past\ebrltl$);
+    \item $C_E$: the set of state-variables with the cost of sub-formulas of the form $\ltlXexp{\psi_1}{i}$, $\ltlXexp{\ltlG{\psi_1}}{i}$ and $\ltlXexp{(\ltlR{\psi_1}{\psi_2})}{i}$, monitored by error variables (future layer of $Canonical Past\ebrltl$);
+    \item $C_F$: the set of variables with the cost of sub-formulas which are combinations between themselves and error variables (Boolean layer of $Canonical Past\ebrltl$).
+    \begin{flalign*}
+    & C_P = \set{ cost_{\nu_\alpha} \; | \; \text{$\alpha$ is a $\fpltl$ sub-formula of $\phi$}} \\
+    & C_E = \set{ cost_{error_\psi} \; | \; \text{$\psi$ is a sub-formula of $\phi$ of the form $\ltlXexp{\psi_1}{i}$, $\ltlXexp{\ltlG{\psi_1}}{i}$ and $\ltlXexp{(\ltlR{\psi_1}{\psi_2})}{i}$}} \\
+    & C_F = \set{ cost_\chi \; | \; \text{$\psi$ is a sub-formula of $\phi$ of the form $\chi_1 \lor \chi_2$ and $\chi_1 \land \chi_2$}}
+    \end{flalign*}
+\end{itemize}
+
+Then we add a further state-variable named $cost_\phi$ which is the maximum cost of $\phi$ at each step. The cost of a formula is defined as follows:
+\begin{itemize}
+    \item \textit{Boolean proposition}: if the formula is a Boolean proposition (positive or negative), its cost is $0$.
+    \item or: if the formula is the logical or between two sub-formulas, then we take the minimum cost between the sub-formulas which are true;
+    \item \textit{and}: if the formula is the logical and between two sub-formulas, then we take the maximum cost between them;
+    \item \textit{next}: if the formula is the next of a sub-formula, we increment by $1$ the cost of such sub-formula;
+    \item \textit{yesterday}: if the formula is the yesterday of a sub-formula, we decrement by $1$ the cost of such sub-formula;
+    \item \textit{release}: if the formula is the trigger between two sub-formulas, we take he maximum cost between the sub-formulas which are true;
+    \item \textit{trigger}: if the formula is the trigger between two sub-formulas, we take he maximum cost between the sub-formulas which are true;
+    \item \textit{since}: if the formula is the trigger between two sub-formulas, we take he maximum cost between the sub-formulas;
+\end{itemize}
+
+Note that in all cases we consider only sub-formulas which are true, since if a sub-formula is false we can ignore its cost.
+
+For sure we need to adapt this concept to our monitor and the result can be seen here below. 
+For each cost variable we assign the cost as described previously only if the formula corresponding to that cost is true, otherwise the cost is a value that for sure exceed the bound, that is $u$.
+
+\begin{lstlisting}[language=smv, mathescape=true]
+DEFINE
+    -- Pure past layer
+    $cost_p$ := 0
+    $cost_{\ltlNeg{p}}$ := 0
+    $cost_{\ltlOr{\alpha_1}{\alpha_2}}$ := case
+        $\nu_{\ltlOr{\alpha_1}{\alpha_2}}$ : $\min_{\alpha \in \set{\alpha_1,\alpha_2}}$ {$cost_{\alpha}$ | $\nu_{\alpha}$ is true}
+        TRUE : u;
+    esac;
+    $cost_{\ltlAnd{\alpha_1}{\alpha_2}}$ := case
+        $\nu_{\ltlAnd{\alpha_1}{\alpha}}$ : max{$cost_{\alpha_1}$,$cost_{\alpha_2}$}
+        TRUE : u;
+    esac;
+    $cost_{\ltlT{\alpha_1}{\alpha_2}}$ := case
+        $\nu_{\ltlT{\alpha_1}{\alpha_2}}$ : $\max_{\alpha \in \set{\alpha_1,\alpha_2}}$ {$cost_{\alpha}$ | $\nu_{\alpha}$ is true}
+        TRUE : u;
+    esac;
+    $cost_{\ltlY{\alpha}}$ := $cost_{\alpha}$ - 1
+    $cost_{\ltlS{\alpha_1}{\alpha_2}}$ := case
+        ($\nu_{\ltlS{\alpha_1}{\alpha_2}}$) : case $\nu_{\alpha_2}$ : $cost_{\alpha_2}$; $!\nu_{\alpha_2}$ : max{$cost_{\alpha_1}$,$cost_{\alpha_2}$};
+        TRUE : u;
+    esac;
+    -- Future layer
+    $cost_{\ltlXexp{\alpha}{i}}$ := $cost_\alpha$ + i
+    $cost_{\ltlXexp{(\ltlR{\alpha_1}{\alpha_2})}{i}}$ := case
+        $\neg error_{\ltlXexp{(\ltlR{\alpha_1}{\alpha_2})}{i}}$ & $\neg \nu^i_{\alpha_1^p}$ : $\max_{\alpha \in \set{\alpha_1,\alpha_2}}$ {$cost_{\alpha}$ | $nu_{\alpha}$ is true} + i
+        TRUE: u;
+    esac;
+    -- Boolean layer
+    $cost_{\ltlOr{\chi_1}{\chi_2}}$ := case
+        $\chi_1$ | $\chi_2$ : $\min_{\chi \in \set{\chi_1,\chi_2}}$ {$cost_{\chi}$ | $\nu_{\chi}$ is true};
+        TRUE: u;
+    esac;
+    $cost_{\ltlAnd{\chi_1}{\chi_2}}$ := case
+        $\chi_1$ & $\chi_2$ : max{$cost_{\chi_1}$, $cost_{\chi_2}$};
+        TRUE: u;
+    esac;
+\end{lstlisting}
+
+\noindent ($\sigma,i \modelsBE{cost_\phi < u+1} \phi \implies \sigma,i \modelsASAP{u}{u-cost_\phi} \phi$) \\
+\noindent We prove the statement by structural induction over $\phi$.
+
+\noindent (Base case)
+\begin{itemize}
+    \item ($\phi = p$) \\
+    Let $\phi$ be a formula of the shape $\phi = p$. 
+    By definition of cost of $\phi$, $cost_\phi = 0$.
+    By hypothesis we know that $\sigma,i \modelsBE{0 < u+1} \phi$, i.e. (1) $\sigma,i \modelsBV{0 < u+1} \phi$ and (2) $\sigma,i \not\modelsBV{0 < u} \phi$ with $u \geq 0$. 
+    To be satisfied best-effort, it must be that $u=0$.
+    
+    We need to prove $\sigma,i \modelsASAP{u}{u-cost_\phi} \phi$, or more precisely $\sigma,i \modelsUB{0}{0-0} \phi$ and $\sigma,i \not\modelsUB{-1}{-1-0} \phi$.
+
+    By definition of (1) we know that $p \in \sigma_i$, from which we derive (3) $\sigma,i \modelsUB{u}{u-0} p$ since it is also true $0 \leq u \leq u$.
+    Moreover, lowering the upper-bound $u$ leads to situation where $u-1 < 0$, violating the condition of positivity of depth and upper-bound, and so concluding (4) $\sigma,i \not\modelsUB{u-1}{u-1-0} \phi$.
+
+    From (3), (4) and definition of ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \phi$.
+
+    \item $\phi = \ltlNeg{p}$ \\
+    Analogous to the $\phi = p$ case.
+\end{itemize}
+
+\noindent (Inductive cases) \\
+Inductive hypothesis: Given $\psi$ sub-formula of $\phi$, $\sigma,i \modelsBE{cost_\psi < u+1} \psi \implies \sigma,i \modelsASAP{u}{u-cost_\psi} \psi$
+\begin{itemize}
+    \item ($\phi = \ltlOr{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlOr{\phi_1}{\phi_2}$.
+    We distinguish three cases according to the truthfulness of $\phi_1$ and $\phi_2$:
+    \begin{itemize}
+        \item ($\phi_1$ is true and $\phi_2$ is false) \\
+        If only $\phi_1$ is true, then the truthfulness of the formula depends only on $\phi_1$.
+        By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$ since $\phi_1$ is the only true formula.
+        By hypothesis we know that $\sigma,i \modelsBE{cost_{\phi_1} < u+1} \phi$, i.e. (1) $\sigma,i \modelsBV{cost_{\phi_1} < u+1} \phi$ and (2) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi$.
+        
+        By definition of bounded-value semantics we extract further information: 
+        (1.1) $(\sigma,i \modelsBV{cost_{\phi_1} < u+1} \phi_1) \lor (\sigma,i \modelsBV{cost_{\phi_1} < u+1} \phi_2)$ and 
+        (2.1) $(\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_1) \land (\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_2)$.
+
+        By the fact that $\phi_2$ is false we rewrite (1.1) as $\sigma,i \modelsBV{cost_{\phi_1} < u+1} \phi_1$. 
+        Moreover, since from (2) we know that $\phi$ is not satisfied for bounds $< u+1$ and $\phi$ is equivalent to $\phi_1$, then we conclude that $\phi_1$ is satisfied best-effort, i.e. $\sigma,i \modelsBE{cost_{\phi_1} < u+1} \phi_1$.
+
+        By inductive hypothesis on $\phi_1$, we get $\sigma,i \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$, i.e. (3) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (4) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$.
+
+        By definition of bounded-steps semantics, we derive:
+        (3.1) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \ltlAnd{\phi_1}{\phi_2}$ and
+        (4.1) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \ltlOr{\phi_1}{\phi_2}$.
+        
+        From (3.1), (4.1), $cost_\phi = cost_{\phi_1}$ and definition of ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlOr{\phi_1}{\phi_2}$.
+
+        \item ($\phi_1$ is false and $\phi_2$ is true) \\
+        Analogous to the previous case.
+
+        \item (both $\phi_1$ and $\phi_2$ are true) \\
+        If both sub-formulas are true, we distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+        \begin{itemize}
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            By definition of costs of $\phi$, $cost_\phi = cost_{\phi_1}$.
+            By hypothesis we know: 
+            (1) $\sigma,i \modelsBV{cost_{\phi_1} < u+1} \ltlOr{\phi_1}{\phi_2}$ and 
+            (2) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \ltlOr{\phi_1}{\phi_2}$.
+            
+            By definition of bounded-value semantics we extract further information: 
+            (1.1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1 \lor \sigma,i \modelsBV{cost_{\phi_1} < u+1} \phi_2$ and 
+            (2.1) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_1 \land \sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true, to make (1) true, then it must hold that $cost_{\phi_1} < u+1$, while to make (2) true it must hold that  $cost_{\phi_1} \not< u$.
+
+            Given that $cost_{\phi_2} > cost_{\phi_1}$ we derive that $cost_{\phi_2} \not\leq u+1$, making always false $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By the previous argument, we fall in the case where only $\phi_1$ is true, which was already solved previously. 
+
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case, but we fall in the case where only $\phi_2$ is true, which was already solved previously.
+
+            \item( $cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of costs of $\phi$, $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know:
+            (1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \ltlOr{\phi_1}{\phi_2}$ and 
+            (2) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \ltlOr{\phi_1}{\phi_2}$.
+            
+            By definition of bounded-value semantics we can extract further information: 
+            (1.1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1 \lor \sigma,i \modelsBV{ccost_\phi < u + 1} \phi_2$ and 
+            (2.1) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_1 \land \sigma,i \not\modelsBV{{\phi_1} < u} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true, to make (1) true, then it must hold that $cost_{\phi_1} < u + 1$, while to make (2) true it must hold that $cost_{\phi_1} \not< u$.
+
+            By (1.1), the previous argument and the best-effort semantics, we derive $\sigma,i \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and $\sigma,i \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+            
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma,i \modelsASAP{u}{u-1-cost_{\phi_1}} \phi_1$ and (4) $\sigma,i \modelsASAP{u}{u-1-cost_{\phi_2}} \phi_2$.
+
+            By definition of ASAP semantics we have: (3.1) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (3.2) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$; (4.1) $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$ and (4.2) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+
+            By (3.1), (4.1) and definition of bounded-steps semantics, we get (5) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \ltlOr{\phi_1}{\phi_2}$.
+
+            By (3.2), (4.2) and definition of bounded-steps semantics, we get (6) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \ltlOr{\phi_1}{\phi_2}$.
+            
+            By (5), (6), $cost_\phi = cost_{\phi_1}$ and definition of ASAP semantics, we claim $\sigma, i \modelsASAP{u}{u-cost_\phi} \ltlOr{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+
+    \item ($\phi = \ltlAnd{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlAnd{\phi_1}{\phi_2}$.
+    We distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+    \begin{itemize}
+        \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+        From definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_1}$.
+        By hypothesis and definition of best-effort semantics we know: 
+        (1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi$ and 
+        (2) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi$ with $u \geq 1$.
+        By definition of bounded-value semantics we extract further information: 
+        (1.1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$, 
+        (1.2) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$ and 
+        (2.1) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_1 \lor \sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_2$.
+        
+        Since both $\phi_1$ and $\phi_2$ are true and $cost_{\phi_1} > cost_{\phi_2}$, to make (1) true it must hold $cost_{\phi_1} < u + 1$, while to make (2) true it must hold $cost_{\phi_1} \not< u$.
+        
+        By the previous fact we derive $\sigma,i \modelsBE{cost_{\phi_1} < u + 1} \phi_1$.
+        
+        By inductive hypothesis on $\phi_1$, we get (3) $\sigma, i \modelsASAP{u}{u-1-cost_{\phi_1}} \phi_1$.
+        
+        Moreover, since $cost_{\phi_1} > cost_{\phi_2}$ we know $\sigma, i \modelsUB{u}{u-1-cost_{\phi_2}} \phi_2$. 
+        By \autoref{lemma:ti-prego-funziona} we know (4) $\sigma, i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$, which can also be written as $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$.
+        
+        By (3) and definition of ASAP semantics we know (3.1) $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (3.2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$.
+
+        By (3.1), (4) and definition of bounded-steps semantics we derive (5) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \ltlAnd{\phi_1}{\phi_2}$.
+        Moreover, by (3.2) and bounded-steps semantics, we derive (6) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \ltlAnd{\phi_1}{\phi_2}$ since $\phi_1$ is falsified.
+        
+        By (5), (6), $cost_\phi = cost_{\phi_1}$ and ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlAnd{\phi_1}{\phi_2}$.
+
+        \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+        Analogous to the previous case.
+
+        \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+        From definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+        By hypothesis and definition of best-effort semantics we know:
+        (1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi$ and 
+        (2) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi$ with $u \geq 1$.
+        By definition of bounded-value semantics we can extract further information: 
+        (1.1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$, 
+        (1.2) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$ and 
+        (2.1) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_1 \lor \sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_2$.
+
+        Since both $\phi_1$ and $\phi_2$ are true and $cost_{\phi_1} = cost_{\phi_2}$, then to make (1) true it must hold $cost_{\phi_1} < u + 1$, while to make (2) true it must hold $cost_{\phi_1} \not< u$.
+        By the previous fact we derive $\sigma,i \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and $\sigma,i \modelsBE{cost_{\phi_1} < u + 1} \phi_2$.
+
+        By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma,i \modelsASAP{u}{u-1-cost_{\phi_1}} \phi_1$ and (4) $\sigma,i \modelsASAP{u}{u-1-cost_{\phi_2}} \phi_2$.
+
+        By definition of ASAP semantics we know that 
+        (3.1) $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and 
+        (3.2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$; 
+        (4.1) $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$ and 
+        (4.2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+
+        Since $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, we can write (3.1), (3.2), (4.1) and (4.2) in terms of $cost_\phi$.
+
+        By (3.1), (4.1) and definition of bounded-steps semantics we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlAnd{\phi_1}{\phi_2}$.
+        Moreover, by (3.2), (4.2) and bounded-steps semantics, we get $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlAnd{\phi_1}{\phi_2}$.
+        By the two previous arguments, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlAnd{\phi_1}{\phi_2}$.
+    \end{itemize}
+    
+    \item ($\phi = \ltlX{\phi_1}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlX{\phi_1}$.
+    
+    By definition of cost, we have that $cost_\phi = cost_{\phi_1} + 1$.
+    
+    By hypothesis we know that $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlX{\phi_1}$ and, moreover, we notice that $u+1$ must be $\geq 2$ with $u \geq 1$.
+    
+    By definition of best-effort semantics we know: 
+    (1) $\sigma,i \modelsBV{cost_\phi < u + 1} \phi$ and 
+    (2) $\sigma,i \not\modelsBV{cost_\phi < u} \phi$.
+    
+    By definition of bounded-value semantics we extract further information: 
+    (1.1) $\sigma,i+1 \modelsBV{cost_\phi < u + 1} \phi_1$ and 
+    (2.1) $\sigma,i+1 \not\modelsBV{cost_\phi < u} \phi_1$.
+    
+    Since by (1.1) it is true that $\sigma_i.cost_\phi < u + 1$, we write (1.1) as $\sigma,i+1 \modelsBV{cost_\phi < u + 1} \phi_1$ and (2.1) as $\sigma,i+1 \not\modelsBV{cost_\phi < u} \phi_1$.
+    
+    By definition of bounded-value semantics we know the previous statements are equivalent to $\sigma,i+1 \modelsBV{cost_{\phi_1} < u} \phi_1$ and (2.1) as $\sigma,i+1 \not\modelsBV{cost_{\phi_1} < u-1} \phi_1$.
+    
+    By (1.1) and (2.1) we derive $\sigma,i+1 \modelsBE{cost_{\phi_1} < u} \phi_1$.
+ 
+    By inductive hypothesis on $\phi_1$, we get $\sigma,i+1 \modelsASAP{u-1}{u-1-cost_{\phi_1}} \phi_1$.
+    
+    By definition of ASAP semantics we know that $\sigma,i+1 \modelsUB{u-1}{u-1-{cost_{\phi_1}}} \phi_1$ and $\sigma,i+1 \not\modelsUB{u-2}{u-2-cost_{\phi_1}} \phi_1$.
+    
+    By definition of bounded-steps semantics, the previous statements are equivalent to (3) $\sigma,i \modelsUB{u-1}{u-2-cost_{\phi_1}} \ltlX{\phi_1}$ and (4) $\sigma,i \not\modelsUB{u-2}{u-3-cost_{\phi_1}} \ltlX{\phi_1}$.
+    
+    By \autoref{lemma:aux}, we get $\sigma,i \modelsUB{u}{u-1-cost_{\phi_1}} \ltlX{\phi_1}$ and $\sigma,i \not\modelsUB{u-1}{u-2-cost_{\phi_1}} \ltlX{\phi_1}$.
+    
+    By definition of cost $cost_{\phi_1} = cost_\phi - 1$, we know that (3) and (4) are equivalent to $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlX{\phi_1}$ and $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlX{\phi_1}$, respectively, from which we conclude $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlX{\phi_1}$.
+
+    \item ($\phi = \ltlY{\phi_1}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlY{\phi_1}$.
+    
+    By definition of cost, we have that $cost_\phi = cost_{\phi_1} - 1$.
+    
+    By hypothesis we know that $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlY{\phi_1}$.
+    
+    By hypothesis and definition of best-effort semantics we know that (1) $\sigma,i \modelsBV{cost_\phi < u + 1} \phi$ and (2) $\sigma,i \not\modelsBV{cost_\phi < u} \phi$.
+    
+    By definition of bounded-value semantics we can extract further information: (1.1) $\sigma,i-1 \modelsBV{cost_\phi < u + 1} \phi_1$ and (2.1) $\sigma,i-1 \not\modelsBV{cost_\phi < u} \phi_1$.
+    
+    Since by (1.1) it is true that $\sigma_i.cost_\phi < u + 1$, we write (1.1) as $\sigma,i-1 \modelsBV{cost_\phi < u + 1} \phi_1$ and (2.1) $\sigma,i-1 \not\modelsBV{cost_\phi < u} \phi_1$.
+    
+    By definition of cost we know the previous statements are equivalent to $\sigma,i-1 \modelsBV{cost_{\phi_1} < u} \phi_1$ and (2.1) $\sigma,i-1 \not\modelsBV{cost_{\phi_1} < u - 1} \phi_1$.
+    
+    By (1.1) and (2.1) we derive $\sigma,i-1 \modelsBE{cost_{\phi_1} < u} \phi_1$.
+ 
+    By inductive hypothesis on $\phi_1$, we get $\sigma,i-1 \modelsASAP{u-1}{u-1-cost_{\phi_1}} \phi_1$.
+    
+    By definition of ASAP semantics we know that $\sigma,i-1 \modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$ and $\sigma,i-1 \not\modelsUB{u-2}{u-2-cost_{\phi_1}} \phi_1$.
+    
+    By definition of bounded-steps semantics, the previous statements are equivalent to (3) $\sigma,i \modelsUB{u-1}{u-cost_{\phi_1}} \phi$ and (4) $\sigma,i \not\modelsUB{u-2}{u-1-cost_{\phi_1}} \ltlY{\phi_1}$
+    
+    By \autoref{lemma:aux}, we get $\sigma,i \modelsUB{u}{u-cost_{\phi_1}+1} \ltlY{\phi_1}$ and $\sigma,i \not\modelsUB{u-1}{u-cost_{\phi_1}} \ltlY{\phi_1}$.
+    
+    By definition of cost $cost_{\phi_1} = cost_\phi + 1$, we know that (3) and (4) are equivalent to $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlY{\phi_1}$ and $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlY{\phi_1}$, respectively, from which we conclude $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlY{\phi_1}$.
+    
+    \item ($\phi = \ltlR{\phi_1}{\phi_2}$) \\ 
+    Let $\phi$ be a formula of the shape $\phi = \ltlR{\phi_1}{\phi_2}$.
+    We distinguish two cases:
+    \begin{itemize}
+        \item ($\phi_1$ is always false and $\phi_2$ is always true) \\
+        By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_2}$ since $\phi_2$ is the only true sub-formula.
+        By hypothesis we know that 
+        (1) $\sigma, i \modelsBV{cost_\phi < u + 1} \phi$ and 
+        (2) $\sigma, i \not\modelsBV{cost_\phi < u} \phi$.
+        By definition of bounded-value semantics we extract further information: 
+        (1.1) $\forall j \geq i.\; \sigma,i-1 \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and
+        (2.1) $\forall j \geq i.\; \sigma,i-1 \not\modelsBV{cost_{\phi_2} < u} \phi_2$.
+
+        By (1.1), (2.1) and best-effort semantics, we know that $\forall j \geq i.\; \sigma,j \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By inductive hypothesis on $\phi_2$, we get $\forall j \geq i.\; \sigma,j \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+
+        By definition of ASAP semantics, we know that (3) $\forall j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_2$ and (4) $\forall j \geq i.\; \sigma,j \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+
+        By (3), (4), $cost_\phi = cost_{\phi_2}$ and definition of bounded-steps semantics, we know that $\forall j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi}} \ltlR{\phi_1}{\phi_2}$ and (4) $\forall j \geq i.\; \sigma,j \modelsUB{u-1}{u-1-cost_{\phi}} \ltlR{\phi_1}{\phi_2}$.
+        By the previous argument, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+
+        
+        \item if $\phi_1$ holds at some point while $\phi_2$ holds until that point, we distinguish three cases:
+        \begin{itemize}
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_2}$.
+            
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsBV{cost_{\phi_2} < u + 1} \phi$ and 
+            (2) $\sigma, i \not\modelsBV{cost_{\phi_2} < u} \phi$.
+            By definition of bounded-value semantics we can extract further information: 
+            (1.1) $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_1$,
+            (1.2) $\forall w \in [i,j].\; \sigma,w \modelsBV{cost_{\phi_2} < u + 1} \phi_2$, 
+            (2.1) $(\forall j \geq i.\; \sigma,j \not\modelsBV{cost_{\phi_2} < u} \phi_1) \land (\exists w \geq i.\; \sigma,j \not\modelsBV{cost_{\phi_2} < u} \phi_2)$ or 
+            (2.2) $(\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_1) \land (\exists w \in [i,j].\; \sigma,w \not\modelsBV{cost_{\phi_2} < u} \phi_2)$.
+
+            Since both $\phi_1$ and $\phi_2$ are true at some point, we know that $cost_{\phi_2} < u + 1$ and $cost_{\phi_2} \not< u$.
+            Therefore, we rewrite (1.2) as $\forall j \geq i.\; \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By the fact that $cost_{\phi_1} < cost_{\phi_2}$, we rewrite (1.1) as $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_1$
+
+            By (1.1) and \autoref{lemma:ti-prego-funziona}, we know (3) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ 
+
+            By inductive hypothesis on $\phi_2$, we get (4) $\forall w \in [i,j].\; \sigma,w \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+
+            By definition of ASAP semantics we know that (4.1) $\forall w \in [i,j].\; \sigma,w \modelsUB{u}{u-cost_{\phi_2}} \phi_2$ and (4.2) $\exists w \in [i,j].\; \sigma,w \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+            
+            Since $u-1 \geq cost_{\phi_2} > cost_{\phi_1}$, we rewrite (3) as $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_1$.
+
+            By (3), (4.1), $cost_\phi = cost_{\phi_2}$ and definition of bounded-steps semantics, we derive (5) $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+
+            By (4.2) we know that if we lower the bound $u$ by $1$, then there exists a point in time where $\phi_2$ will not hold.
+            This fact falsify the whole formula with a lower bound than $u$, therefore we derive (6) $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+
+            By (5), (6), $cost_\phi = cost_{\phi_2}$ and ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+            
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case.
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsBV{cost_\phi < u + 1} \phi$ and 
+            (2) $\sigma, i \not\modelsBV{cost_\phi < u} \phi$.
+            By definition of bounded-value semantics we can extract further information: 
+            (1.1) $\exists j \geq i.\; \sigma,j \modelsBV{cost_\phi < u + 1} \phi_1$,
+            (1.2) $\forall w \in [i,j].\; \sigma,w \modelsBV{cost_\phi < u + 1} \phi_2$, 
+            (2.1) $(\forall j \geq i.\; \sigma,j \not\modelsBV{cost_\phi < u} \phi_1) \land (\exists w \geq i.\; \sigma,j \not\modelsBV{cost_\phi < u + 1} \phi_2)$ or (2.2) $\exists j \geq i.\; \sigma,j \modelsBV{cost_\phi < u + 1} \phi_1 \land \exists w \in [i,j].\; \sigma,w \not\modelsBV{cost_\phi < u + 1} \phi_2$.
+            
+            Since both $\phi_1$ and $\phi_2$ are true at some point, we know that $cost_\phi < u + 1$ and $cost_\phi \not< u$.
+            
+            Therefore, we rewrite (1.1) as $\exists j \geq i.\; \sigma,j \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and (1.2) as $\forall w \in [i,j].\; \sigma,w \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (4) $\exists j \geq i.\; \sigma,j \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$ and (5) $\forall w \in [i,j].\; \sigma,w \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+
+            Since $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, we rewrite (4) and (5) in terms of $cost_\phi$.
+
+            By definition of ASAP semantics we know:
+            (4.1) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_\phi} \phi_1$ and
+            (4.2) $\forall j \geq i \sigma,j \not\modelsUB{u-1}{u-1-cost_\phi} \phi_1$;
+            (5.1) $\forall w \in [i,j].\; \sigma,w \modelsUB{u}{u-cost_\phi} \phi_2$ and 
+            (5.2) $\exists w \in [i,j].\; \sigma,w \not\modelsUB{u-1}{u-1-cost_\phi} \phi_2$.
+
+            By (4.1), (5.1) and definition of bounded-steps semantics, we derive (6) $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+
+            By (4.2) and (5.2) we know that if we lower the bound $u$ by $1$, then $\phi_1$ will be always false, but there exists a point in time where $\phi_2$ will not hold.
+            This fact falsify the whole formula with a lower bound than $u$, therefore we derive (7) $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+
+            By (6), (7) and definition of ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+            
+        \end{itemize}
+    \end{itemize}
+
+    \item ($\phi = \ltlT{\phi_1}{\phi_2}$) \\
+    Analogous to the $\phi = \ltlR{\phi_1}{\phi_2}$ case.
+
+    \item ($\phi = \ltlS{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlS{\phi_1}{\phi_2}$.
+    We distinguish two cases:
+    \begin{itemize}
+        \item $\phi_2$ is true \\
+        By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_2}$.
+        By hypothesis we know that (1) $\sigma, i \modelsBV{cost_{\phi_2} < u + 1} \phi$ and (2) $\sigma, i \not\modelsBV{cost_{\phi_2} < u} \phi$.
+        Since $\phi_2$ is true, we do not mind the truthfulness of $\phi_1$ because we have already reached a point in time where $\phi_2$ holds.
+        For this reason we can ignore $\phi_1$ and the truthfulness of $\phi$ depends on $\phi_2$.
+        Therefore, it is equivalent to write $\sigma,i \modelsBE{cost_{\phi_2} \leq u - 1}$, knowing that (1) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and (2) $\sigma,i \not\modelsBV{cost_{\phi_2} < u} \phi_2$.
+
+        By inductive hypothesis on $\phi_2$, we get $\sigma,i \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$, i.e. (3) $\sigma,i \modelsUB{u}{u-1-cost_{\phi_2}} \phi_2$ and (4) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+        
+        By definition of bounded-steps semantics and (3), we derive $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi$, while by (4) we derive $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi$.
+        From the previous argument, $cost_\phi = cost_{\phi_2}$ and definition of ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \phi$. 
+        
+        \item $\phi_1$ is true and $\phi_2$ is false \\
+        We distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+        \begin{itemize}
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_1}$.
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsBV{cost_{\phi_1} < u + 1} \phi$ and 
+            (2) $\sigma, i \not\modelsBV{cost_{\phi_1} < u} \phi$.
+            By definition of bounded-value semantics we can extract further information:
+            (1.1) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_2$ and 
+            (1.2) $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_1} < u + 1} \phi_1$;
+            (2.1) $\forall j \in [0,i].\; \sigma,j \not\modelsBV{cost_{\phi_1} < u} \phi_2$ or
+            (2.1) $(\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_1} < u} \phi_2 \land \exists w \in (j,i]\; \sigma,w \not\modelsBV{cost_{\phi_1} < u} \phi_1$.
+
+            Since $\phi_1$ is true and $\phi_2$ is false, to make (1) true it must hold $cost_{\phi_1} < u + 1$, while to make (2) true it must hold $cost_{\phi_1} \not< u$.
+            In the first case at point $i$ we require that $\phi_1$ holds since $\phi_2$ is false and if $\phi_1$ had been false, $\ltlS{\phi_1}{\phi_2}$ would have been false. 
+            Given that $\phi_1$ holds by hypothesis, the other requirement to satisfy is the bound $cost_{\phi_1} < u + 1$.
+            In the second case at point $i$ we require $\ltlS{\phi_1}{\phi_2}$ to be false. Since $\phi_2$ at time $i$ is false and $\phi_1$ is true, the only way to make the whole formula false is to violate the bound for $cost_{\phi_1} < u$.
+            For this reason we can say $\forall w \in (j,i].\; \sigma,w \modelsBE{cost_{\phi_1} < u + 1} \phi_1$.
+            
+            By \autoref{lemma:ti-prego-funziona}, we know that (3) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_1}} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ we get (4) $\forall w \in (j,i].\; \sigma,w \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$
+
+            By definition of ASAP semantics we know: (4.1) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (4.2) $\forall w \in (j,i].\; \sigma,w \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$.
+
+            By (3), (4.1) and definition of bounded-steps semantics, we derive (4)$\sigma,i \modelsUB{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+            By (4.2) we note that lowering the bound $u$ by $1$ leads to the fact that $\phi_1$ is false at any position in $(j,i]$, falsifying so the formula.
+            Therefore, we derive. $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \ltlS{\phi_1}{\phi_2}$.
+            By previous arguments, $cost_\phi = cost_{\phi_1}$ and definition of ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            Analogous to the previous case
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsBV{cost_{\phi_1} < u + 1} \phi$ and 
+            (2) $\sigma, i \not\modelsBV{cost_{\phi_1} < u} \phi$.
+            By definition of bounded-value semantics we can extract further information:
+            (1.1) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_2$ and 
+            (1.2) $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_1} < u + 1} \phi_1$;
+            (2.1) $\forall j \in [0,i].\; \sigma,j \not\modelsBV{cost_{\phi_1} < u} \phi_2$ or
+            (2.1) $(\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_1} < u} \phi_2 \land \exists w \in (j,i]\; \sigma,w \not\modelsBV{cost_{\phi_1} < u} \phi_1$.
+
+            Since $\phi_1$ is true and $\phi_2$ is false, to make (1) true it must hold $cost_{\phi_1} < u + 1$, while to make (2) true it must hold $cost_{\phi_1} \not< u$.
+            In the first case at point $i$ we require that $\phi_1$ holds since $\phi_2$ is false and if $\phi_1$ had been false, $\ltlS{\phi_1}{\phi_2}$ would have been false. 
+            Given that $\phi_1$ holds by hypothesis, the other requirement to satisfy is the bound $cost_{\phi_1} < u + 1$.
+            In the second case at point $i$ we require $\ltlS{\phi_1}{\phi_2}$ to be false. Since $\phi_2$ at time $i$ is false and $\phi_1$ is true, the only way to make the whole formula false is to violate the bound $cost_{\phi_1} < u$.
+            For this reason and $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, we can say $\forall w \in (j,i].\; \sigma,w \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$
+            
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\forall w \in (j,i].\; \sigma,w \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$ and (4) $\exists j \in [0,i].\; \sigma,j \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$
+
+            By definition of ASAP semantics we know: 
+            (3.1) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and 
+            (3.2) $\forall w \in (j,i].\; \sigma,w \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$;
+            (4.1) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}}$ and
+            (4.2) $\forall j \in [0,i].\; \sigma,j \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+
+            By $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ we can read (3.1), (3.2), (4.1) and (4.2) in terms of $cost_\phi$.
+
+            By (3.1), (4.1) and definition of bounded-steps semantics, we derive (5) $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+            By (3.2) we note that lowering the bound $u$ by $1$ leads to the fact that $\phi_1$ is false at any position in $(j,i]$, falsifying so the formula.
+            Moreover, by (4.2) we note that that lowering the bound $u$ by $1$, also $\phi_2$ will never be satisfied bounded-steps, further falsifying the formula.
+            Therefore, we derive (6) $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+            By previous arguments and definition of ASAP semantics, we claim $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
+
+\noindent ($\sigma,i \modelsASAP{u}{u-cost_\phi} \phi \implies \sigma,i \modelsBE{cost_\phi < u + 1} \phi$)
+
+\noindent We prove the statement by structural induction over $\phi$
+
+\noindent (Base case)
+\begin{itemize}
+    \item ($\phi = p$) \\
+    Let $\phi$ have the shape of $\phi = p$.
+    By definition of cost of $\phi$, $cost_\phi = 0$.
+    By hypothesis we know that $\sigma,i \modelsASAP{u}{u-0} p$ with $u \in \Nat$, in particular (1) $\sigma,i \modelsUB{u}{u-1-0} p$ and (2) $\sigma,i \not\modelsUB{u-1}{u-1-0} p$.
+
+    We need to prove $\sigma,i \modelsBE{0 < u + 1} p$, or more precisely $\sigma,i \modelsBV{0 < u + 1}$ and $\sigma,i \not\modelsBV{0 < u} p$.
+
+    By definition of (1) we know that $p \in \sigma_i$ and $0 \leq u \leq u$, while by (2) we know that $u=1$ since it is the least upper bound to the values satisfying $\forall u \in \Nat.\; 0 \leq u \leq u$. 
+    Moreover, we derive (4) $\sigma,i \not\modelsBV{0 < u} p$ which is true with $u=0$.
+
+    From (3), (4) and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} p$
+    
+    \item ($\phi = \ltlNeg{p}$) \\
+    Analogous to the $\phi = p$ case.
+\end{itemize}
+    
+\noindent (Inductive cases)
+\noindent Inductive hypothesis: Given a sub-formula $\psi$ of $\phi$, $\sigma,i \modelsASAP{u}{u-cost_\psi} \psi \implies \sigma,i \modelsBE{cost_\psi < u + 1} \psi$
+\begin{itemize}
+    \item ($\phi = \ltlOr{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of shape $\ltlOr{\phi_1}{\phi_2}$.
+    We distinguish three cases:
+    \begin{itemize}
+        \item ($\phi_1$ is true and $\phi_2$ is false)
+         By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$ since $\phi_1$ is the only true formula.
+         By hypothesis we know that $\sigma,i \modelsASAP{u}{u-cost_{\phi_1}} \phi$, i.e. (1) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi$ and (2) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi$.
+         
+         By definition of bounded-steps semantics we extract further information: 
+         (1.1) $(\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1) \lor (\sigma, i\modelsUB{u}{u-cost_{\phi_1}} \phi_2)$ and 
+         (1.2)$(\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1) \land (\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_2)$.
+
+         By the fact that $\phi_2$ is false we rewrite (1.1) as $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+         Moreover, since from (2) we know that $\phi$ is not satisfied for bounds $< u$ and $\phi$ is equivalent to $\phi_1$, then we conclude that $\phi_1$ is satisfied ASAP, i.e. $\sigma,i \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$.
+
+         By inductive hypothesis on $\phi_1$, we get $\sigma,i \modelsBE{cost_{\phi_1} < u + 1}$, i.e. (3) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_1$.
+
+         By (3) and definition of bounded-value semantics, we derive $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \ltlOr{\phi_1}{\phi_2}$.
+         By (4), $\phi_2$ false and definition of bounded-value semantics, we derive $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi$.
+         From the previous arguments, $cost_\phi = cost_{\phi_1}$ and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlOr{\phi_1}{\phi_2}$
+
+         \item ($\phi_1$ is false and $\phi_2$ is true) \\
+         Analogous to the previous case.
+
+         \item (both $\phi_1$ and $\phi_2$ are true) \\
+         If both sub-formulas are true, we distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+         \begin{itemize}
+             \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+             By definition of costs of $\phi$, $cost_\phi = cost_{\phi_1}$.
+             By hypothesis we know: 
+             (1) $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \ltlOr{\phi_1}{\phi_2}$ and
+             (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \ltlOr{\phi_1}{\phi_2}$.
+
+             By definition of bounded-steps semantics we extract further information:
+             (1.1) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1 \lor \sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$ and 
+             (2.1) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1 \land \sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_2$.
+
+             Given that $cost_{\phi_2} > cost_{\phi_1}$, we derive that $cost_{\phi_2} \not< u + 1$ making always false $\sigma,i \modelsUB{u}{u-1-cost_{\phi_1}} \phi_2$.
+
+             By the previous argument, we fall in the case where only $\phi_1$ is true, which was already solved previously.
+             
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case, but we fall in the case where only $\phi_2$ is true, which was already solved previously.
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of costs of $\phi$, $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know: 
+            (1) $\sigma, i \modelsUB{u}{u-cost_\phi} \ltlOr{\phi_1}{\phi_2}$ and
+            (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlOr{\phi_1}{\phi_2}$.
+            
+            By definition of bounded-steps semantics we extract further information:
+            (1.1) $\sigma,i \modelsUB{u}{u-cost_\phi} \phi_1 \lor \sigma,i \modelsUB{u}{u-cost_\phi} \phi_2$ and 
+            (2.1) $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \phi_1 \land \sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true, to make (1) true, then it must hold that $0 \leq cost_\phi \leq u$, while to make (2) true it must hold $u-1-cost_\phi < 0$ or $u-1-cost_\phi > u-1$ in order to violate the bound and make $\ltlOr{\phi_1}{\phi_2}$ false.  
+
+            By (1.1), the previous argument and ASAP semantics, we derive $\sigma,i \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$ and $\sigma,i \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma,i \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\sigma,i \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By definition of best-effort semantics we have: 
+            (3.1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$,
+            (3.2) $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \phi_1$,
+            (4.1) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and
+            (4.2) $\sigma,i \not\modelsBV{cost_{\phi_2} < u} \phi_1$
+
+            Since $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, we rewrite (3.1), (3.2), (4.1) and (4.2) in terms of $cost_\phi$.
+
+            By (3.1), (4.1) and definition of bounded-value semantics, we get (5) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlOr{\phi_1}{\phi_2}$.
+            By (3.2), (4.2) and definition of bounded-value semantics, we get (6) $\sigma,i \not\modelsBV{cost_\phi < u} \ltlOr{\phi_1}{\phi_2}$.
+            By (5), (6) and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlOr{\phi_1}{\phi_2}$.
+         \end{itemize}
+         
+    \end{itemize}
+
+    \item ($\phi = \ltlAnd{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of shape $\ltlAnd{\phi_1}{\phi_2}$.
+    We distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+    \begin{itemize}
+        \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+        By definition of costs of $\phi$, $cost_\phi = cost_{\phi_1}$.
+        By hypothesis we know: 
+        (1) $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \ltlAnd{\phi_1}{\phi_2}$ and
+        (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \ltlAnd{\phi_1}{\phi_2}$.
+
+        By definition of bounded-steps semantics we extract further information: 
+        (1.1) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$,
+        (1.2) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$ and
+        (2.1) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1 \lor \sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_2$.
+        
+        Since both $\phi_1$ and $\phi_2$ are true and $cost_{\phi_1} > cost_{\phi_2}$, then to make (1) true it must hold $0 \leq cost_{\phi_1} \leq u$, while to make (2) true it must hold $u-1-cost_{\phi_1} < 0$ or $u-1-cost_{\phi_1} > u$. 
+
+        By the previous fact we derive $\sigma,i \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$.
+        
+        By inductive hypothesis on $\phi_1$, we get (3) $\sigma, i \modelsBE{cost_{\phi_1} < u + 1} \phi_1$.
+        Moreover, by \autoref{lemma:ti-prego-funziona} we know (4) $\sigma, i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+        
+        By (3) and definition of best-effort semantics we know 
+        (3.1) $\sigma, i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (3.2) $\sigma, i \not\modelsBV{cost_{\phi_1} < u} \phi_1$.
+
+        By (3.1), (4) and definition of bounded-value semantics, we derive (5) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \ltlAnd{\phi_1}{\phi_2}$.
+        By (3.2) and definition of bounded-value semantics, we derive (6) $\sigma,i \not\modelsBV{cost_{\phi_1}< u} \ltlAnd{\phi_1}{\phi_2}$.
+        By (5), (6), $cost_\phi = cost_{\phi_1}$ and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlAnd{\phi_1}{\phi_2}$.        
+        
+        \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+        Analogous to the previous case.
+
+        \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+        By definition of costs of $\phi$, $cost_\phi = cost_{\phi_1}$.
+        By hypothesis we know: 
+        (1) $\sigma, i \modelsUB{u}{u-cost_\phi} \ltlAnd{\phi_1}{\phi_2}$ and
+        (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlAnd{\phi_1}{\phi_2}$.
+        
+        By definition of bounded-steps semantics we extract further information: 
+        (1.1) $\sigma,i \modelsUB{u}{u-cost_\phi} \phi_1$,
+        (1.2) $\sigma,i \modelsUB{u}{u-cost_\phi} \phi_2$ and
+        (2.1) $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \phi_1 \lor \sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \phi_2$.
+        
+        Since both $\phi_1$ and $\phi_2$ are true and $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, then to make (1) true it must hold $0 \leq cost_\phi \leq u$, while to make (2) true it must hold $u-1-cost_\phi < 0$ or $u-1-cost_\phi > u$. 
+
+        By the previous fact we derive $\sigma,i \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$ and $\sigma,i \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+        
+        By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma, i \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\sigma,i \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+        
+        By definition of best-effort semantics we know that
+        (3.1) $\sigma, i \modelsBV{cost_\phi < u + 1} \phi_1$,
+        (3.2) $\sigma, i \not\modelsBV{cost_\phi < u} \phi_1$,
+        (4.1) $\sigma, i \modelsBV{cost_\phi < u + 1} \phi_2$ and 
+        (4.2) $\sigma, i \not\modelsBV{cost_\phi < u} \phi_2$.
+
+        By (3.1), (4.1) and definition of bounded-value semantics we derive (5) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlAnd{\phi_1}{\phi_2}$.
+        By (3.2), (4.2) and definition of bounded-value semantics, we derive (6) $\sigma,i \not\modelsBV{cost_\phi < u} \ltlAnd{\phi_1}{\phi_2}$.
+        By (5), (6) and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlAnd{\phi_1}{\phi_2}$.      
+    
+    \end{itemize}
+    
+    
+    \item ($\phi = \ltlX{\phi_1}$) \\
+    Let $\phi$ be a formula of shape $\ltlX{\phi_1}$.
+    By definition of cost, we have that $cost_\phi = cost_{\phi_1} + 1$ and, moreover, $d \geq 1$.
+    By hypothesis we know that $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlX{\phi_1}$, i.e.
+    (1) $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlX{\phi_1}$ and
+    (2) $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlX{\phi_1}$.
+
+    By $cost_\phi = cost_{\phi_1} + 1$, we rewrite
+    (1) as $\sigma, i+1 \modelsUB{u}{u-1-cost_{\phi_1}} \phi_1$ and 
+    (2) as $\sigma, i+1 \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$
+
+    By \autoref{lemma:aux}, we rewrite 
+    (1) as $\sigma, i+1 \modelsUB{u-1}{u-2-cost_{\phi_1}} \phi_1$ and
+    (2) as $\sigma, i+1 \not\modelsUB{u-2}{u-3-cost_{\phi_1}} \phi_1$
+    
+    By definition of bounded-steps semantics we extract further information: 
+    (1.1) $\sigma, i+1 \modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$ and
+    (2.1) $\sigma, i+1 \not\modelsUB{u-2}{u-2-cost_{\phi_1}} \phi_1$.
+
+    By (1.1) and (2.1), we derive $\sigma,i+1 \modelsASAP{u-1}{u-1-cost_{\phi_1}}$.
+
+    By inductive hypothesis on $\phi_1$, we get (4) $\sigma,i+1 \modelsBE{cost_{\phi_1} < u} \phi_1$.
+
+    By definition of best-effort semantics, we derive (4.1) $\sigma,i+1 \modelsBV{cost_{\phi_1} < u} \phi_1$ and (4.2) $\sigma,i+1 \not\modelsBE{cost_{\phi_1} < u-1} \phi_1$.
+
+    By (4.1), $cost_{\phi_1} = cost_\phi - 1$ and definition of bounded-value semantics, we derive (5) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlX{\phi_1}$.
+
+    By (4.2), $cost_{\phi_1} = cost_\phi - 1$ and definition of bounded-value semantics, we derive  (6) $\sigma,i \not\modelsBE{cost_\phi < u} \ltlX{\phi_1}$.
+
+    By (5), (6) and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlX{\phi_1}$.
+
+    \item ($\phi = \ltlY{\phi_1}$) \\
+    Let $\phi$ be a formula of shape $\ltlY{\phi_1}$.
+    By definition of cost, we have that $cost_\phi = cost_{\phi_1} - 1$.
+    By hypothesis we know that $\sigma,i \modelsASAP{u}{u-cost_\phi} \ltlY{\phi_1}$.
+    By hypothesis and definition of ASAP semantics we know that
+    (1) $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlY{\phi_1}$ and
+    (2) $\sigma,i \not\modelsUB{u-1}{u-1-cost_\phi} \ltlY{\phi_1}$.
+
+    By definition of bounded-steps semantics we extract further information: 
+    (1.1) $\sigma, i-1 \modelsUB{u}{u-cost_\phi-1} \phi_1$ and
+    (2.1) $\sigma, i-1 \not\modelsUB{u-1}{u-1-cost_\phi-1} \phi_1$.
+
+    By $cost_\phi = cost_{\phi_1} - 1$, we rewrite
+    (1.1) as $\sigma, i-1 \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and 
+    (2.1) as $\sigma, i-1 \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$
+    
+    By (1.1) and (2.1), we derive (3) $\sigma,i-1 \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$.
+
+    By \autoref{lemma:aux}, we know (3) is equivalent to $\sigma,i-1 \modelsASAP{u+1}{u+1-cost_{\phi_1}} \phi_1$.
+
+    By inductive hypothesis on $\phi_1$, we get (4) $\sigma,i-1 \modelsBE{cost_{\phi_1} < u+2} \phi_1$.
+
+    By definition of best-effort semantics, we derive (4.1) $\sigma,i-1 \modelsBV{cost_{\phi_1} < u+2} \phi_1$ and (4.2) $\sigma,i-1 \not\modelsBV{cost_{\phi_1} < u + 1} \phi_1$.
+
+    By (4.1), $cost_{\phi_1} = cost_\phi + 1$ and definition of bounded-value semantics, we derive (5) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlY{\phi_1}$.
+
+    By (4.2), $cost_{\phi_1} = cost_\phi - 1$ and definition of bounded-value semantics, we derive  (6) $\sigma,i \not\modelsBV{cost_\phi < u} \ltlY{\phi_1}$.
+
+    By (5), (6) and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlY{\phi_1}$.
+
+    \item ($\phi = \ltlR{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlR{\phi_1}{\phi_2}$.
+    We distinguish two cases according to the truthfulness of $\phi_1$ and $\phi_2$ along $\sigma$:
+    \begin{itemize}
+       \item ($\phi_1$ is always false and $\phi_2$ is always true) \\
+        By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_2}$ since $\phi_2$ is the only true sub-formula.
+        By hypothesis we know that 
+        (1) $\sigma, i \modelsUB{u}{u-cost_{\phi_2}} \ltlR{\phi_1}{\phi_2}$ and 
+        (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \ltlR{\phi_1}{\phi_2}$.
+        By definition of bounded-value semantics we extract further information: 
+        (1.1) $\forall j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_2$ and
+        (2.1) $\forall j \geq i.\; \sigma,j \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+        
+        By (1.1), (2.1) and best-effort semantics, we know that $\forall j \geq i.\; \sigma,j \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+        
+        By inductive hypothesis on $\phi_2$, we get $\forall j \geq i.\; \sigma,j \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+        
+        By definition of best-effort semantics, we know that (3) $\forall j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and (4) $\forall j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u} \phi_2$.
+        
+        By (3), $cost_\phi = cost_{\phi_2}$ and definition of bounded-steps semantics, we know that $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$ and (4) $\sigma,i \not\modelsBV{cost_{\phi} < u} \ltlR{\phi_1}{\phi_2}$.
+        By the previous argument, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+
+        \item if $\phi_1$ holds at some point while $\phi_2$ holds until that point, we distinguish three cases:
+        \begin{itemize}
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_2}$.
+            
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsUB{u}{u-cost_{\phi_2}} \phi$ and 
+            (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi$.
+            By definition of bounded-step semantics we extract further information: 
+            (1.1) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_1$,
+            (1.2) $\forall w \in [i,j].\; \sigma,w \modelsUB{u}{u-cost_{\phi_2}} \phi_2$, 
+            (2.1) $(\forall j \geq i.\; \sigma,j \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_1) \land (\exists w \geq i.\; \sigma,j \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2)$ or 
+            (2.2) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_1 \land \exists w \in [i,j].\; \sigma,w \not\modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true at some point, to make (1) true it must hold $0 \leq cost_{\phi_2} \leq u$, while to make (2) true it must hold $u-1-cost_{\phi_2} < 0$ or $u-1-cost_{\phi_2} > u$.
+            Therefore, we rewrite (1.2) as $\forall w \in [i,j].\; \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+
+            By (1.1) and \autoref{lemma:ti-prego-funziona}, we know (3) $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_1$ 
+
+            By inductive hypothesis on $\phi_2$, we get (4) $\forall w \in [i,j].\; \sigma,w \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By definition of best-effort semantics we know that (4.1) $\forall w \in [i,j].\; \sigma,w \modelsBV{cost_{\phi_2}-u-1} \phi_2$ and (4.2) $\forall w \in [i,j].\; \sigma,w \not\modelsBV{cost_{\phi_2} < u} \phi_2$.
+
+            By (3), (4.1), $cost_\phi = cost_{\phi_2}$ and definition of bounded-steps semantics, we derive (5) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+
+            By (4.2) we know that if we lower the bound $u$, then there exists a point in time where $\phi_2$ will not hold.
+            This fact falsify the whole formula with a lower bound than $u$, therefore we derive (6) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+
+            By (5), (6), $cost_\phi = cost_{\phi_2}$ and best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+            
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case.
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsUB{u}{u-cost_\phi} \phi$ and 
+            (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_\phi} \phi$.
+            By definition of bounded-step semantics we extract further information: 
+            (1.1) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_\phi} \phi_1$,
+            (1.2) $\forall w \in [i,j].\; \sigma,w \modelsUB{u}{u-cost_\phi} \phi_2$, 
+            (2.1) $(\forall j \geq i.\; \sigma,j \not\modelsUB{u-1}{u-1-cost_\phi} \phi_1) \land (\exists w \geq i.\; \sigma,j \not\modelsUB{u-1}{u-1-cost_\phi} \phi_2)$ or 
+            (2.2) $\exists j \geq i.\; \sigma,j \modelsUB{u-1}{u-1-cost_\phi} \phi_1 \land \exists w \in [i,j].\; \sigma,w \not\modelsBV{u-1}{u-1-cost_\phi} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true at some point and $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, to make (1) true it must hold $0 \leq cost_{\phi_2} \leq u$ while to make (2) true it must hold $u-1-cost_{\phi_2} < 0$ or $u-2-cost_{\phi_2} > u$.
+            Therefore, we rewrite (1.1) as $\exists j \geq i.\; \sigma,j \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$ and (1.2) as $\forall j \geq i.\; \sigma, j \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \geq i.\; \sigma,j \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\forall w \in [i,j].\; \sigma,w \modelsBE{cost_{\phi_2} < u + 1} \phi_2$.
+
+            Since $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, we rewrite (4) and (5) in terms of $cost_\phi$.
+
+            By definition of best-effort semantics we know that 
+            (3.1) $\exists j \geq i.\; \sigma,j \modelsBV{cost_\phi < u + 1} \phi_1$,
+            (3.2) $\forall j \geq i.\; \sigma,j \not\modelsBV{cost_\phi < u} \phi_1$,
+            (4.1) $\forall w \in [i,j].\; \sigma,w \modelsBV{cost_\phi < u + 1} \phi_2$ and 
+            (4.2) $\forall w \in [i,j].\; \sigma,w \not\modelsBV{cost_\phi < u} \phi_2$.
+
+            By (3.1), (4.1) and definition of bounded-variables semantics, we derive (5) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+
+            By (3.2) and (4.2) we know that if we lower the bound $u$, then $\phi_1$ will be always false, but also $\phi_2$ will not hold.
+            This fact falsify the whole formula with a lower bound than $u$, therefore we derive 
+            (6) $\sigma,i \not\modelsBV{cost_\phi < u} \ltlR{\phi_1}{\phi_2}$.
+            
+            By (5), (6) and best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+            
+        \end{itemize}
+    \end{itemize}
+
+    \item ($\phi = \ltlT{\phi_1}{\phi_2}$) \\
+    Analogous to the $\phi = \ltlR{\phi_1}{\phi_2}$ case.
+
+    \item ($\phi = \ltlS{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlS{\phi_1}{\phi_2}$.
+    We distinguish two cases:
+    \begin{itemize}
+        \item $\phi_2$ is true. \\
+        By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_2}$.
+        By hypothesis we know that 
+        (1) $\sigma, i \modelsUB{u}{u-cost_{\phi_2}} \phi$ and (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi$.
+        Since $\phi_2$ is true, we do not mind the truthfulness of $\phi_1$ because we have already reached a point in time where $\phi_2$ holds.
+        For this reason we can ignore $\phi_1$ and the truthfulness of $\phi$ depends on $\phi_2$.
+        Therefore, it is equivalent to write $\sigma,i \modelsASAP{u}{u-cost_{\phi_2}}$, knowing that 
+        (1.1) $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$ and 
+        (2.1) $\sigma,i \not\modelsUB{u-1}{u-1-cost_{\phi_2}} \phi_2$.
+        
+        By inductive hypothesis on $\phi_2$, we get $\sigma,i \modelsBE{cost_{\phi_2} < u + 1} \phi_2$, i.e. 
+        (3) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and 
+        (4) $\sigma,i \not\modelsBV{cost_{\phi_2} < u} \phi_2$.
+
+        By (3) and definition of bounded-steps semantics, we derive $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \ltlS{\phi_1}{\phi_2}$, while by (4) we derive $\sigma,i \not\modelsBV{cost_{\phi_2} < u} \ltlS{\phi_1}{\phi_2}$.
+        From the previous argument, $cost_\phi = cost_{\phi_2}$ and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlS{\phi_1}{\phi_2}$.
+
+        \item if $\phi_1$ is true and $\phi_2$ is false, we distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+        \begin{itemize}
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_1}$.
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \phi$ and 
+            (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi$.
+            By definition of bounded-value semantics we can extract further information:
+            (1.1) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_1}} \phi_2$ and 
+            (1.2) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_{\phi_1}} \phi_1$;
+            (2.1) $\forall j \in [0,i].\; \sigma,j \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_2$ or
+            (2.1) $(\exists j \in [0,i].\; \sigma,j \modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_2 \land \exists w \in (j,i]\; \sigma,w \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$.
+
+            Since $\phi_1$ is true and $\phi_2$ is false, to make (1) true it must hold $0 \leq u-cost_{\phi_1} \leq u$, while to make (2) true it must hold $u-1-cost_{\phi_1} < 0$ or $u-1-cost_{\phi_1} > u$.
+            For this reason we can say $\forall w \in (j,i].\; \sigma,w \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$.
+            
+            By \autoref{lemma:ti-prego-funziona}, we get (3) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$, we get (4) $\forall w \in (j,i].\; \sigma,w \modelsBE{u}{u-cost_{\phi_1}} \phi_1$
+
+            By definition of best-effort semantics we know: (4.1) $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (4.2) $\forall w \in (j,i].\; \sigma,w \not\modelsBV{cost_{\phi_1} < u} \phi_1$.
+
+            By (3), (4.1) and definition of bounded-steps semantics, we derive (5) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \ltlS{\phi_1}{\phi_2}$.
+            By (4.2) we note that lowering the bound $u$ leads to the fact that $\phi_1$ is false at any position in $(j,i]$, falsifying so the formula.
+            Therefore, we derive. $\sigma,i \not\modelsBV{cost_{\phi_1} < u} \ltlS{\phi_1}{\phi_2}$.
+            By the previous arguments, $cost_\phi = cost_{\phi_1}$ and definition of best-effort semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlS{\phi_1}{\phi_2}$.
+
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            Analogous to the previous case
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know that 
+            (1) $\sigma, i \modelsUB{u}{u-cost_{\phi_1}} \phi$ and 
+            (2) $\sigma, i \not\modelsUB{u-1}{u-1-cost_{\phi_1}} \phi$.
+            By definition of bounded-steps semantics we can extract further information:
+            (1.1) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_\phi} \phi_2$ and 
+            (1.2) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_\phi} \phi_1$;
+            (2.1) $\forall j \in [0,i].\; \sigma,j \not\modelsUB{u-1}{u-1-cost_\phi} \phi_2$ or
+            (2.2) $\exists j \in [0,i].\; \sigma,j \modelsUB{u-1}{u-1-cost_\phi} \phi_2 \land \exists w \in (j,i]\; \sigma,w \not\modelsUB{u-1}{u-1-cost_\phi} \phi_1$.
+
+            Since $\phi_1$ is true and $\phi_2$ is false and $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$, to make (1) true it must hold $0 \leq u-cost_\phi \leq u$, while to make (2) true it must hold $u-1-cost_\phi < 0$ or $u-1-cost_{\phi_1} > u$.
+            
+            For this reason, we can say $\forall w \in (j,i].\; \sigma,w \modelsASAP{u}{u-cost_{\phi_1}} \phi_1$ and $\exists j \in [0,i].\; \sigma,j \modelsASAP{u}{u-cost_{\phi_2}} \phi_2$
+            
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\forall w \in (j,i].\; \sigma,w \modelsBE{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\exists j \in [0,i].\; \sigma,j \modelsBE{cost_{\phi_2} < u + 1} \phi_2$
+
+            By definition of best-effort semantics we know: 
+            (3.1) $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and 
+            (3.2) $\forall w \in (j,i].\; \sigma,w \not\modelsBV{cost_{\phi_1} < u} \phi_1$;
+            (4.1) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1}$ and
+            (4.2) $\forall j \in [0,i].\; \sigma,j \not\modelsBV{cost_{\phi_2} < u} \phi_2$.
+
+            By $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ we can read (3.1), (3.2), (4.1) and (4.2) in terms of $cost_\phi$.
+
+            By (3.1), (4.1) and definition of bounded-steps semantics, we derive (5) $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlS{\phi_1}{\phi_2}$.
+            By (3.2) we note that lowering the bound of $< u-1$ leads to the fact that $\phi_1$ is false at any position in $(j,i]$, falsifying so the formula.
+            Moreover, by (4.2) we note that that lowering the bound $< u - 1$, also $\phi_2$ will never be satisfied bounded-steps, further falsifying the formula.
+            Therefore, we derive (6) $\sigma,i \not\modelsBV{cost_\phi < u} \ltlS{\phi_1}{\phi_2}$.
+            By previous arguments and definition of ASAP semantics, we claim $\sigma,i \modelsBE{cost_\phi < u + 1} \ltlS{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+    
+\end{itemize}
+
+\end{proof}
+
+\begin{lemma}[Bounded-value and bounded-steps equivalence for safety formulas] \label{lemma:ti-prego-funziona}
+Let $\sigma$ be any trace of such model evaluated at position $i$, $\phi$ a formula belonging to safety fragment of $\ltl$ and $u \in \Nat$ be a constant number.
+It hold
+\begin{flalign*}
+   \sigma,i \modelsBV{cost_\phi < u + 1} \phi \iff \sigma,i \modelsUB{u}{u-cost_\phi} \phi
+\end{flalign*}
+
+\begin{proof}
+
+\noindent ($\sigma,i \modelsBV{cost_\phi < u + 1} \phi \implies \sigma,i \modelsUB{u}{u-cost_\phi} \phi$)
+
+\noindent (base cases)
+\begin{itemize}
+    \item ($\phi = p$) \\
+    Let $\phi$ be a formula of the shape $p$.
+    By definition of cost of $\phi$, we know that $cost_\phi = 0$.
+    By hypothesis we know that $\sigma,i \modelsBV{0 < u + 1} p$, which by definition of bounded value semantics means $p \in \sigma_i$ and $0 < u + 1$.
+
+    We want to prove $\sigma,i \modelsUB{u}{u-0} p$, which is true thanks to $p \in \sigma_i$ (by hypothesis) and $\forall u \in \Nat.\; 0 \leq u \leq u$. 
+    
+    \item ($\phi = \ltlNeg{p}$) \\
+    Analogous case to the previous one.
+\end{itemize}
+
+\noindent (inductive cases) \\
+\noindent Inductive hypothesis: Given $\psi$ sub-formula of $\phi$, $\sigma,i \modelsBV{cost_\psi < u + 1} \psi \implies \sigma,i \modelsUB{u}{u-cost_\psi} \psi$.
+\begin{itemize}
+    \item ($\phi = \ltlOr{\phi_1}{\phi_2}$)
+    \begin{itemize}
+        \item ($\phi_1$ true and $\phi_2$ is false) \\
+        By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$ since $\phi_1$ is the only true formula.
+        By hypothesis we know that $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi$, from which (by definition of bounded-value semantics) we derive: (1) $\sigma,i \modelsBV{cost_\phi < u + 1} \phi_1 \lor \sigma,i \modelsBV{cost_\phi < u + 1} \phi_2$.
+
+        By the fact that $\phi_2$ is false we rewrite (1) as $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$.
+
+        By inductive hypothesis on $\phi_1$, we get (2) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+
+        By (2), $cost_\phi = cost_{\phi_1}$ and definition of bounded-steps semantics, we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \phi$.
+
+        \item ($\phi_1$ false and $\phi_2$ is true) \\
+        Analogous to the previous case.
+
+        \item (both $\phi_1$ and $\phi_2$ are true) \\
+        If both sub-formulas are true, We distinguish three cases:
+        \begin{itemize}
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$.
+            By hypothesis we know that $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1 \lor \sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true, it holds that $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ while we distinguish two cases according to whether $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$ or not;
+            \begin{itemize}
+                \item ($\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$) \\
+                If $\phi_2$ does not hold with such bound, then it is false and so the truthfulness of $\ltlOr{\phi_1}{\phi_2}$ depends only on $\phi_1$ analogously to the previous case where $\phi_2$ was false.
+                \item ($\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$) \\
+                If $\phi_2$ hold with such bound, then it holds also that (2) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+                By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (4) $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+                Since $cost_{\phi_1} < cost_{\phi_2}$ it also holds (4) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$.
+
+                By (3), (4) and $cost_{\phi} = cost_{\phi_1}$ and bounded-value semantics, we claim $\sigma,i \modelsUB{u}{u-1cost_\phi} \ltlOr{\phi_1}{\phi_2}$.
+            \end{itemize}
+            
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case.
+            
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know that $\sigma,i \modelsBV{cost_{\phi_1} < u+1} \phi$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\sigma,i \modelsBV{cost_\phi < u+1} \phi_1 \lor \sigma,i \modelsBV{cost_\phi < u+1} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true with the same cost, it is easy to see that both sub-formulas are satisfied with such bound.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (2) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (3) $\sigma,i \modelsUB{u}{u-1cost_{\phi_2}} \phi_2$.
+
+            By (2), (3), $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ and bounded-value semantics, we claim $\sigma,i \modelsUB{u}{u-1cost_\phi} \ltlOr{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+
+    \item ($\phi = \ltlAnd{\phi_1}{\phi_2}$) \\
+    We distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+    \begin{itemize}
+        \item $cost_{\phi_1} > cost_{\phi_2}$ \\
+        From definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_1}$.
+        By hypothesis we know that $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi$, from which (by definition of bounded-value semantics) we derive: (1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (2) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+
+        Since $cost_{\phi_1} > cost_{\phi_2}$, we rewrite (2) as $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (4) $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        Since $u-1 \geq cost_{\phi_1} > cost_{\phi_2}$ we rewrite (4) as $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$.
+
+        By (3), (4), $cost_\phi = cost_{\phi_1}$ and definition of bounded-steps semantics, we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \phi$.
+
+        \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+        Analogous to the previous case.
+
+        \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+        From definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+        By hypothesis we know that $\sigma,i \modelsBV{cost_\phi < u + 1} \phi$, from which (by definition of bounded-value semantics) we derive: (1) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (2) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (4) $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        By (3), (4), $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ and definition of bounded-steps semantics, we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \phi$.
+    \end{itemize}
+
+    \item ($\phi = \ltlX{\phi_1}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlX{\phi_1}$.
+    By definition of cost of $\phi$, we have $cost_\phi = cost_{\phi_1} + 1$.
+    By hypothesis we know that $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlX{\phi_1}$, from which (by definition of bounded-value semantics) we derive: (1) $\sigma,i+1 \modelsBV{cost_\phi < u + 1} \ltlX{\phi_1}$.
+    Since $cost_\phi = cost_{\phi_1} + 1$, we rewrite (1) as $\sigma,i+1 \modelsBV{cost_{\phi_1} < u} \phi_1$.
+
+    By inductive hypothesis on $\phi_1$, we get (2) $\sigma,i+1 \modelsUB{u-1}{u-1-cost_{\phi_1}} \phi_1$.
+    By \autoref{lemma:aux}, we rewrite (2) as $\sigma,i+1 \modelsUB{u}{u-cost_{\phi_1}} \phi_1$
+    By (2) and bounded-steps semantics, we derive (3) $\sigma,i \modelsUB{u}{u-1-cost_{\phi_1}} \ltlX{\phi_1}$.
+    By definition of cost $cost_{\phi_1} = cost_\phi - 1$ and (3), we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlX{\phi_1}$.
+
+    \item ($\phi = \ltlY{\phi_1}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlY{\phi_1}$.
+    By definition of cost of $\phi$, we have $cost_\phi = cost_{\phi_1} - 1$.
+    By hypothesis we know that $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlY{\phi_1}$, from which (by definition of bounded-value semantics) we derive: (1) $\sigma,i-1 \modelsBV{cost_\phi < u + 1} \ltlY{\phi_1}$.
+    Since $cost_\phi = cost_{\phi_1} - 1$, we rewrite (1) as $\sigma,i+1 \modelsBV{cost_{\phi_1} < u+2} \phi_1$.
+
+    By inductive hypothesis on $\phi_1$. we get (2) $\sigma,i+1 \modelsUB{u+1}{u+1-cost_{\phi_1}} \phi_1$.
+    By \autoref{lemma:aux}, we rewrite (2) as $\sigma,i-1 \modelsUB{u}{u-cost_{\phi_1}} \phi_1$
+    By (2) and bounded-steps semantics, we derive (3) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}+1} \ltlY{\phi_1}$.
+    By definition of cost $cost_{\phi_1} = cost_\phi + 1$ and (3), we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlY{\phi_1}$.
+
+    \item ($\phi = \ltlR{\phi_1}{\phi_2}$) \\ 
+    Let $\phi$ be a formula of the shape $\phi = \ltlR{\phi_1}{\phi_2}$.
+    We distinguish two cases:
+    \begin{itemize}
+        \item ($\phi_1$ is always false and $\phi_2$ is always true).
+        By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_2}$ since $\phi_2$ is the only true sub-formula.
+        By hypothesis we know that $\sigma, i \modelsBV{cost_{\phi_2} < u + 1} \phi$, from which we derive by definition of bounded-value semantics: (1) $\forall j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By inductive hypothesis on $\phi_2$, we get (2) $\forall j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        By (2), $cost_\phi = cost_{\phi_2}$ and definition of bounded-steps semantics, we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+
+        \item if $\phi_1$ holds at some point while $\phi_2$ holds until that point, we distinguish three cases:
+        \begin{itemize}
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_2}$.
+
+            By hypothesis we know that $\sigma, i \modelsBV{cost_{\phi_2} < u + 1} \phi$, from which we derive by definition of bounded-value semantics: (1) $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_1$ and $\forall w \in [i,j].\; \sigma,w \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+            Since $cost_{\phi_2} > cost_{\phi_1}$, we rewrite (1) as $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_1$. 
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and (4) $\forall w \in [i,j].\; \sigma,w \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+            Since $u-1 \geq cost_{\phi_2} > cost_{\phi_1}$, we rewrite (3) as $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_1$.
+
+            By (3), (4), $cost_\phi = cost_{\phi_2}$ and definition of bounded-steps semantics, we claim $\sigma, i \modelsUB{u}{i-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case.
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+
+            By hypothesis we know that $\sigma, i \modelsBV{cost_\phi < u + 1} \phi$, from which we derive by definition of bounded-value semantics: (1) $\exists j \geq i.\; \sigma,j \modelsBV{cost_\phi < u + 1} \phi_1$ and $\forall w \in [i,j].\; \sigma,w \modelsBV{cost_\phi < u + 1} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-1-cost_{\phi_1}} \phi_1$ and (4) $\forall w \in [i,j].\; \sigma,w \modelsUB{u}{u-1-cost_{\phi_2}} \phi_2$.
+
+            By (3), (4), $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ and definition of bounded-steps semantics, we claim $\sigma, i \modelsUB{u}{i-1-cost_\phi} \ltlR{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+    
+    \item ($\phi = \ltlT{\phi_1}{\phi_2}$) \\
+    Analogous to the $\phi = \ltlR{\phi_1}{\phi_2}$ case.
+
+    \item ($\phi = \ltlS{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlS{\phi_1}{\phi_2}$.
+    We distinguish three cases:
+    \begin{itemize}
+        \item ($\phi_2$ is true) \\
+        By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_2}$.
+        By hypothesis we know that $\sigma, i \modelsBV{cost_{\phi_2} < u + 1} \phi$, from which we derive by definition of bounded-value semantics: (1) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and (2) $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_2} < u + 1} \phi_1$.
+
+        Since $\phi_2$ is true at time $i$, we note that by definition we do not mind about $\phi_1$, therefore we just need to consider $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By inductive hypothesis on $\phi_2$, we get (3) $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        By (3), $cost_\phi = cost_{\phi_2}$ and bounded-steps semantics, we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+
+        \item ($\phi_1$ is true and $\phi_2$ is false) \\
+        We distinguish three cases:
+        \begin{itemize}
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_1}$.
+            By hypothesis we know that $\sigma, i \modelsBV{cost_{\phi_1} < u + 1} \phi$, from which we derive by definition of bounded-value semantics: (1) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_2$ and (2) $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_1} < u + 1} \phi_1$.
+
+            Since $cost_{\phi_1} > cost_{\phi_2}$, we rewrite (1) as $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_2$ and (4) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+
+            Since $u-1 \geq cost_{\phi_1} > cost_{\phi_2}$, we rewrite (3) as $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_1}} \phi_2$.
+
+            By (3), (4), $cost_\phi = cost_{\phi_1}$ and bounded-steps semantics, we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            Analogous to the previous case
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$ we know that $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know that $\sigma, i \modelsBV{cost_\phi < u + 1} \phi$, from which we derive by definition of bounded-value semantics: (1) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_\phi < u + 1} \phi_2$ and (2) $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_\phi < u + 1} \phi_1$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_2$ and (4) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+
+            By (3), (4), $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ and bounded-steps semantics, we claim $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
+
+\noindent ($\sigma,i \modelsUB{u}{u-cost_\phi} \phi \implies \sigma,i \modelsBV{cost_\phi < u + 1} \phi$)
+
+\noindent (base cases)
+\begin{itemize}
+    \item ($\phi = p$) \\
+    Let $\phi$ be a formula of the shape $p$.
+    By definition of cost of $\phi$, we know that $cost_\phi = 0$.
+    By hypothesis we know that $\sigma,i \modelsUB{u}{u-0} p$, which by definition of bounded-steps semantics means $p \in \sigma_i$ and $u \leq u$ with $u \in \Nat$.
+
+    We want to prove $\sigma,i \modelsBV{0 < u + 1} p$, which is true thanks to $p \in \sigma_i$ (by hypothesis) and $0 < u + 1$ with $u \in \Nat$. 
+    
+    \item ($\phi = \ltlNeg{p}$) \\
+    Analogous case to the previous one.
+\end{itemize}
+
+\noindent (inductive cases) \\
+\noindent Inductive hypothesis: Given $\psi$ sub-formula of $\phi$, $\sigma,i \modelsUB{u}{u-1-cost_\psi} \psi \implies \sigma,i \modelsBV{cost_\psi < u + 1} \psi$.
+\begin{itemize}
+    \item ($\phi = \ltlOr{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\ltlOr{\phi_1}{\phi_2}$.
+    We distinguish three cases according to the truthfulness of $\phi_1$ and $\phi_2$:
+    \begin{itemize}
+        \item if $\phi_1$ is true and $\phi_2$ is false. \\
+        By definition of $\phi$, $cost_\phi = cost_{\phi_1}$ since $\phi_1$ is the only true formula.
+        By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi$, from which (by definition of bounded-value semantics) we derive: 
+        (1) $\sigma,i \modelsBV{u}{u-cost_{\phi_1}} \phi_1 \lor \sigma,i \modelsBV{u}{u--cost_{\phi_1}} {\phi_2}$.
+
+        By the fact that $\phi_2$ is false, we rewrite (1) as $\sigma,i \modelsBV{u}{u-cost_{\phi_1}} \phi_1$.
+
+        By inductive hypothesis on $\phi_1$, we get (2) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1}$.
+
+        By (2), $cost_\phi = cost_{\phi_1}$ and definition of bounded-steps semantics, we claim $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \ltlOr{\phi_1}{\phi_2}$.
+
+        \item if $\phi_1$ is false and $\phi_2$ is true. \\
+        Analogous to the previous case.
+
+        \item if both $\phi_1$ and $\phi_2$ are true. \\
+        If both sub-formulas are true, we distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$.
+        \begin{itemize}
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$.
+            By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1 \lor \sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true, it holds that $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ while we distinguish two cases according to whether $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$ or not;
+            \begin{itemize}
+                \item ($\sigma,i \not\modelsUB{u}{u-cost_{\phi_1}} \phi_2$) \\
+                If $\phi_2$ does not hold with such bound and depth, then it is false and so the truthfulness of $\ltlOr{\phi_1}{\phi_2}$ depends only on $\phi_1$ analogously to the previous case where $\phi_2$ was false.
+                \item ($\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$) \\
+                If $\phi_2$ hold with such bound and depth, then it holds also that (2) $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+                By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+                Since $cost_{\phi_1} < cost_{\phi_2}$ it also holds (4) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+
+                By (3), (4) and $cost_{\phi} = cost_{\phi_1}$ and bounded-value semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlOr{\phi_1}{\phi_2}$.
+            \end{itemize}
+            
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case.
+            
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\sigma,i \modelsUB{u}{u-cost_\phi} \phi_1 \lor \sigma,i \modelsUB{u}{u-cost_\phi} \phi_2$.
+
+            Since both $\phi_1$ and $\phi_2$ are true with the same cost, it is easy to see that both sub-formulas are satisfied with such bound and depth.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (2) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (3) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By (2), (3), $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ and bounded-value semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlOr{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+    
+    \item ($\phi = \ltlAnd{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\ltlOr{\phi_1}{\phi_2}$.
+    We distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+    \begin{itemize}
+        \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+        By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$.
+        By hypothesis we know that $\sigma,i \modelsUB{u}{u-1-cost_{\phi_1}} \phi$, from which (by definition of bounded-value semantics) we derive: 
+        (1) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_1$ and
+        (2) $\sigma,i \modelsUB{u}{u-cost_{\phi_1}} \phi_2$.
+
+        Since $cost_{\phi_1} > cost_{\phi_2}$, we write (2) as $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        By inductive hypothesis on $\phi_1$ and $\phi_2$, we get 
+        (3) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and 
+        (4) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        Since $cost_{\phi_1} > cost_{\phi_2}$ and $cost_{\phi_1} < u + 1$, we rewrite (4) as $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+
+        By (3), (4) and definition of best-effort semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlAnd{\phi_1}{\phi_2}$
+        
+        \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+        Analogous to the previous case.
+        
+        \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+        By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$.
+        By hypothesis we know that $\sigma,i \modelsUB{u}{u-1-cost_{\phi_1}} \phi$, from which (by definition of bounded-value semantics) we derive: 
+        (1) $\sigma,i \modelsUB{u}{u-cost_{\phi}} \phi_1$ and
+        (2) $\sigma,i \modelsUB{u}{u-cost_{\phi}} \phi_2$.
+
+        Since $cost_{\phi_1} = cost_{\phi_2}$, we write 
+        (1) as $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and
+        (2) as $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By inductive hypothesis on $\phi_1$ and $\phi_2$, we get 
+        (3) $\sigma,i \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and 
+        (4) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By (3), (4), $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ and definition of best-effort semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlAnd{\phi_1}{\phi_2}$.
+    \end{itemize}
+    
+    \item ($\phi = \ltlX{\phi_1}$) \\
+    Let $\phi$ be a formula of the shape $\ltlX{\phi_1}$.
+    By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1} + 1$.
+    By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlX{\phi_1}$, from which (by definition of bounded-value semantics) we derive: 
+    (1) $\sigma,i+1 \modelsUB{u}{u-cost_\phi+1} \phi_1$.
+
+    Since $cost_\phi = cost_{\phi_1} + 1$, then we rewrite (1) as  $\sigma,i+1 \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+
+    By \autoref{lemma:aux}, we know (2) $\sigma,i+1 \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+
+    By inductive hypothesis on $\phi_1$, we get (3) $\sigma,i+1 \modelsBV{cost_{\phi_1} < u} \phi_1$.
+
+    By (3) and $cost_{\phi_1} = cost_\phi - 1$, we know $\sigma,i+1 \modelsBV{cost_\phi < u + 1} \phi_1$ and by definition of best-effort semantics we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlX{\phi_1}$.
+    
+    \item ($\phi = \ltlY{\phi_1}$) \\
+    Let $\phi$ be a formula of the shape $\ltlX{\phi_1}$.
+    By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1} - 1$.
+    By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlY{\phi_1}$, from which (by definition of bounded-value semantics) we derive: 
+    (1) $\sigma,i-1 \modelsUB{u}{u-cost_\phi-1} \phi_1$.
+
+    Since $cost_\phi = cost_{\phi_1} - 1$, then we rewrite (1) as  $\sigma,i-1 \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+
+    By \autoref{lemma:aux}, we know (2) $\sigma,i-1 \modelsUB{u+1}{u+1-cost_{\phi_1}} \phi_1$.
+
+    By inductive hypothesis on $\phi_1$, we get (3) $\sigma,i-1 \modelsBV{cost_{\phi_1} < u + 2} \phi_1$.
+
+    By $cost_{\phi_1} = cost_\phi + 1$ and (3) we know $\sigma,i-1 \modelsBV{cost_\phi < u + 1} \phi_1$ and by definition of best-effort semantics we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlY{\phi_1}$.
+    
+    \item ($\phi = \ltlR{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlR{\phi_1}{\phi_2}$.
+    We distinguish three cases according to the truthfulness of $\phi_1$ and $\phi_2$ along $\sigma$:
+    \begin{itemize}
+        \item ($\phi_2$ is always true) \\
+        By definition of cost of $\phi$, $cost_\phi = cost_{\phi_2}$.
+        By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$, from which (by definition of bounded-value semantics) we derive: 
+        (1) $\forall j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        By inductive hypothesis on $\phi_2$, we get (2) $\forall j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$
+
+        By (2), $cost_\phi = cost_{\phi_2}$ and definition of bounded-value semantics, we claim $\sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        \item $\phi_1$ is true at some point and $\phi_2$ is not always true \\
+        We distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+        \begin{itemize}
+            \item ($cost_{\phi_1} < cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_2}$.
+            By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_1$ and 
+            (2) $\forall w \in[i,j].\; \sigma,w \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+            Since $cost_{\phi_2} > cost_{\phi_1}$, we rewrite (1) as $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_{\phi_1}} \phi_1$. 
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\forall w \in[i,j].\; \sigma,w \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+            Since $u-1 \geq cost_{\phi_2} > cost_{\phi_1}$, we rewrite (3) as $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_1$.
+
+            By (3), (4), $cost_\phi = cost_{\phi_2}$ and definition of bounded-value semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+            
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case.
+            
+            \item ($cost_{\phi_1} == cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1} = cost_{\phi_1}$.
+            By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlR{\phi_1}{\phi_2}$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\exists j \geq i.\; \sigma,j \modelsUB{u}{u-cost_\phi} \phi_1$ and 
+            (2) $\forall w \in[i,j].\; \sigma,w \modelsUB{u}{u-cost_\phi} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \geq i.\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_1$ and (4) $\forall w \in[i,j].\; \sigma,w \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+            By (3), (4), $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$ and definition of bounded-value semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlR{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+    
+    \item ($\phi = \ltlT{\phi_1}{\phi_2}$) \\
+    Analogous to the $\phi = \ltlR{\phi_1}{\phi_2}$ case.
+    
+    \item ($\phi = \ltlS{\phi_1}{\phi_2}$) \\
+    Let $\phi$ be a formula of the shape $\phi = \ltlS{\phi_1}{\phi_2}$.
+    We distinguish three two cases according to the truthfulness of $\phi_1$ and $\phi_2$:
+    \begin{itemize}
+        \item ($\phi_2$ is true) \\
+        By definition of cost of $\phi$, $cost_\phi = cost_{\phi_2}$.
+        By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$, from which (by definition of bounded-value semantics) we derive: 
+        (1) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_1$ and 
+        (2) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        Since $\phi_2$ is true at time $i$, we note that by definition we do not mind about $\phi_1$, therefore we just need to consider $\sigma,i \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+        By inductive hypothesis on $\phi_2$, we get (3) $\sigma,i \modelsBV{cost_{\phi_2} < u + 1} \phi_2$.
+
+        By (3), $cost_\phi = cost_{\phi_2}$ and bounded-value semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlS{\phi_1}{\phi_2}$.
+
+        \item ($\phi_1$ is true and $\phi_2$ is false) \\
+        We distinguish three cases according to $cost_{\phi_1}$ and $cost_{\phi_2}$:
+        \begin{itemize}
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1}$.
+            By hypothesis we know that $\sigma,i \modelsUB{u}{u-cost_\phi} \ltlS{\phi_1}{\phi_2}$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_1}} \phi_2$ and 
+            (2) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_{\phi_1}} \phi_1$.
+
+            Since $cost_{\phi_1} > cost_{\phi_2}$, we rewrite (1) as $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_{\phi_2}} \phi_2$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_1} < u + 1} \phi_1$
+
+            Since $u-1 \geq cost_{\phi_1} > cost_{\phi_2}$, we rewrite (3) as $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_1} < u + 1} \phi_2$.
+
+            By (3), (4), $cost_\phi = cost_{\phi_1}$ and bounded-value semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlS{\phi_1}{\phi_2}$.
+
+            \item ($cost_{\phi_1} > cost_{\phi_2}$) \\
+            Analogous to the previous case.
+
+            \item ($cost_{\phi_1} = cost_{\phi_2}$) \\
+            By definition of cost of $\phi$, $cost_\phi = cost_{\phi_1} = cost_{\phi_2}$.
+            By hypothesis we know that $\sigma,i \modelsUB{u}{u-1-cost_\phi} \ltlS{\phi_1}{\phi_2}$, from which (by definition of bounded-value semantics) we derive: 
+            (1) $\exists j \in [0,i].\; \sigma,j \modelsUB{u}{u-cost_\phi} \phi_2$ and 
+            (2) $\forall w \in (j,i].\; \sigma,w \modelsUB{u}{u-cost_\phi} \phi_1$.
+
+            By inductive hypothesis on $\phi_1$ and $\phi_2$, we get (3) $\exists j \in [0,i].\; \sigma,j \modelsBV{cost_{\phi_2} < u + 1} \phi_2$ and $\forall w \in (j,i].\; \sigma,w \modelsBV{cost_{\phi_1} < u + 1} \phi_1$
+
+            By (3), (4), $cost_\phi = cost_{\phi_1}$ and bounded-value semantics, we claim $\sigma,i \modelsBV{cost_\phi < u + 1} \ltlS{\phi_1}{\phi_2}$.
+        \end{itemize}
+    \end{itemize}
+    
+\end{itemize}
+
+\end{proof}
+\end{lemma}
+
+\begin{lemma} \label{lemma:aux}
+Let $\phi$ be a formula belonging to the safety fragment, $u \in \Nat$ be the number of steps and $d \geq 1$ be the initial depth.
+It holds that
+\begin{flalign*}
+    \sigma,i \modelsASAP{u-1}{d} \phi \iff \sigma,i \modelsASAP{u}{d+1} \phi
+\end{flalign*}
+
+\begin{proof}
+$ $
+
+\begin{itemize}
+    \item ($\sigma,i \modelsASAP{u-1}{d} \phi \implies \sigma,i \modelsASAP{u}{d+1} \phi$) \\
+    By hypothesis we know that $\phi$ is satisfied ASAP in $u-1-d$ steps.
+    We note that the number of steps is the same if we satisfy $\phi$ with upper bound $u$ and depth $d+1$, i.e. $u-(d+1)$.
+    Since the number of steps is unaffected, we conclude $\sigma,i \modelsASAP{u}{d+1} \phi$.
+
+    \item ($\sigma,i \modelsASAP{u}{d+1} \phi \implies \sigma,i \modelsASAP{u-1}{d} \phi$) \\
+    By hypothesis we know that $\phi$ is satisfied ASAP in $u-(d+1)$ steps.
+    We note that the number of steps is the same if we satisfy $\phi$ with upper bound $u-1$ and depth $d$, i.e. $u-1-d$.
+    Since the number of steps is unaffected, we conclude $\sigma,i \modelsASAP{u}{d+1} \phi$.
+\end{itemize}
+\end{proof}
+\end{lemma}
+
+\end{theorem}

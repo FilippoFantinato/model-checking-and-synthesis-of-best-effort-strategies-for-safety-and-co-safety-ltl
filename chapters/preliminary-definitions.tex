@@ -1,0 +1,26 @@
+%!TEX root = ../main.tex
+
+\chapter{Preliminary definitions} \label{chapt:preliminary-definitions}
+
+In this chapter we introduce all concepts needed to understand the work of my thesis.
+
+We start from the basics with \textit{B{\"u}chi Automata} and \textit{$\omega$-regular languages}. We mention them and explain two important classes of $\omega$-regular languages: SAFETY and coSAFETY.
+
+We go on with \textit{Linear Temporal Logic} ($\ltl$) focusing on Extended Bounded Response LTL with past ($\ebrltl$), an enrichment of LTL with past temporal operators and bounded operators, that has the feature of being as expressive as the safety fragment of LTL.
+
+Linear Temporal Logic and B{\"u}chi Automata are combined to verify LTL properties on models of systems. This technique is called \textit{Automaton-based LTL Model Checking} and is paired with \textit{Reduced Ordered Binary Decision Diagrams} (ROBDDs) to develop symbolic model checking that can cope with real-wold systems.
+ROBDDs are a very popular data structure to manipulate efficiently boolean formulas. Representing B{\"u}chi Automata and Transitions Systems as boolean formulas, we can exploit ROBDDs to represent and manipulate set of states (regions) instead of explicit representations. 
+
+% AIGER and SMV
+During the thesis we have used a format to describe circuits and a language for the description of finite state systems. We are speaking of the \textit{AIGER format} and the \textit{SMV language}.
+
+Finally, we introduce the \textit{Reactive Synthesis} problem, its game-theoretical formulation and the basic algorithms to solve it. Such basic algorithms can be enriched thanks to ROBDDs, so we present their symbolic formulations. We explain a technique to perform reactive synthesis from Extended Bounded Response LTL specifications.
+
+\input{chapters/preliminary-definitions/buchi-automata}
+\input{chapters/preliminary-definitions/linear-temporal-logic}
+\input{chapters/preliminary-definitions/ltl-model-checking}
+\input{chapters/preliminary-definitions/robdd}
+\input{chapters/preliminary-definitions/aiger}
+\input{chapters/preliminary-definitions/smv}
+\input{chapters/preliminary-definitions/reactive-synthesis}
+\input{chapters/preliminary-definitions/reactive-synthesis-from-ebrltl}

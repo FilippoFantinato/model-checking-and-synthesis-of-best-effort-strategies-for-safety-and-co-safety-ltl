@@ -1,0 +1,88 @@
+%!TEX root = ../main.tex
+
+\chapter{Introduction} \label{chapt:introduction}
+
+In Computer Science there has always been the need to prove the correctness of systems, in order to have mathematical proofs which state that some properties hold on them. 
+The field that deals with proving the correctness of systems is called Formal Methods. 
+There are many techniques that fall within the Formal Methods field, but the most popular are those techniques which generate automated proof of correctness. 
+Some of them are: Automated Theorem Proving, in which a system attempts to produce a formal proof from a description of the system, a set of logical axioms, and a set of inference rules; Abstract Interpretation, in which a system verifies an over-approximation of a behavioural property of the program, using a fixpoint computation over a (possibly complete) lattice representing it; Model Checking, in which a system verifies certain properties by means of an exhaustive search of all possible states that a system could enter during its execution.
+
+An interesting and widely used technique which belongs to the Model Checking field is Automaton-based LTL Model Checking.
+Such technique exploits a model of the system described as a reactive system via either a Labeled Transition System (LTS), a Moore Machine or a Mealy machine, to prove linear-time properties on it.
+Linear-time properties are properties which describe a behaviour along time, assuming that the time is linear (at any time there exists exactly one previous moment and exactly one subsequent moment in time, excepting at the starting time).
+To describe linear-time properties we use a logic named Linear Temporal Logic ($\ltl$).
+We can group in classes all linear-time properties, to form a hierarchy class of properties with increasing complexity.
+The two classes we are interested in are called safety and co-safety.
+The first type of class express the concept that "something bad will never happen", while the latter one express the concept that "something good will eventually happen".
+
+Another field which is related to Automaton-based LTL Model Checking is Reactive Synthesis. 
+In this field we do not mind anymore to verify a property on a model, but we want to generate automatically a correct-by-construction system starting from some $\ltl$ specifications.
+Therefore, we state the $\ltl$ specifications which must hold and we generate a system on which they will hold.
+All approaches to solve Reactive Synthesis problems are based on game theory, in particular we can look at such problem like a two-players infinite-game on finite graphs, also called arenas. 
+Such problem can be reduced to find out a winning strategy for a given player according to a winning condition. If such winning strategy does not exist, then we say that such game is unrealizable.
+There are several types of games, each of which allows to synthesize a particular class of $\ltl$ formulas.  
+Full $\ltl$ synthesis is a very complex problem and also expensive in terms of space and time, but we could limit ourselves to synthesize only some $\ltl$ fragments. 
+We choose safety and co-safety fragments and the corresponding game are called safety and reachability games, respectively.
+
+This thesis is about the work carried out at Fondazione Bruno Kessler (FBK) with the Formal Methods for System and Software Design unit.
+All topics touched upon during the thesis are part of Model Checking and Reactive Synthesis fields. They go from the basics, such as B\"uchi Automata and $\omega$-regular languages, Linear Temporal Logic (LTL) and Automaton-based Model Checking, to more advanced topics, like Reactive Synthesis of safety and co-safety properties from a LTL dialect called $\pastebrltl$, which has the same expressiveness of the safety fragment of $\ltl$.
+
+The problem we have introduced and we have faced is an optimality test on closed-loop models of a system.
+Closed-loop models of a system are a very common way to describe abstraction of systems, since they allow you to split the behavioural logic (controller) from the actual system (plant). The controller is another model which reads in input the current state of the plant and reacts consequently to change the state of the plant.
+In particular, given a plant, a controller and a safety or co-safety $\ltl$ formula, we want to figure out whether the formula is satisfied in the closed-loop between plant and controller and whether the controller is the best one for that plant according to an optimality principle.
+In other words, we want to find out another controller which does better than the current one.
+If we cannot find it, then the current controller is optimal.
+
+We introduce formally the problem, presenting two new semantics called bounded-value and best-effort semantics useful to describe it.
+Furthermore, we introduce two further semantics, called bounded-steps and As Soon As Possible (ASAP) semantics, which capture the property of a system to act in as little as number of steps.
+Later we prove that the ASAP semantics can be expressed in the best-effort semantics.
+
+We present an algorithm to cope with the optimal controller synthesis problem based on synthesis under assumptions, that is we try to synthesize a new controller from the formula which is forced to be better than the current one by imposing a further constraint to the game arena.  
+If such game is realizable, then it means that the current controller is not the optimal and the synthesized controller is a proof of the fact that there exists a better controller.
+Otherwise (i.e. when the game is not realizable), we obtain a proof that the current controller is the optimal one for that plant on that formula.
+Under assumptions means that the arena is not built simply from the formula, but from both the formula and the plant, in order to synthesize a controller that enforce the desired property under the assumption that the behaviour of the plant respects some constraints.
+
+Such optimality test algorithm has been implemented in the software nuXmv.
+Since we also need a safety and co-safety synthesizer, we write our personal one which is personalized and customized for our needs.
+The implemented algorithms exploit symbolic representation to deal with the big amount of states that there could be in many games.
+In order to reduce the complexity of the software, we play both safety and reachability games on safety arenas exploiting the duality between them.
+All safety arenas accepted in input must be in AIGER format, while outputted synthesized controllers could be in either AIGER format or described as a SMV.
+
+Another original contribution of the thesis is the formalization of non-deterministic strategy by reachability games. Indeed, there exists a general algorithm to determinize a non-determinstic strategy, but there is no a general formulation of such non-deterministic strategy as in the case of safety games.
+
+The concept of optimal controller is nothing new.
+Optimal controllers are widely exploited and studied in the field of Optimal Control Theory, which develops optimal ways to control a dynamical systems \cite{BB05}. 
+It has numerous applications in science, engineering and operations research.
+Some examples where the Optimal Control Theory fits perfectly are: send a rocket to the moon with minimal fuel consumption,
+produce a given amount of chemical in minimal time and/or with minimal amount of catalyst used (or maximize the amount produced in given time), bring sales of a new product to a desired level while minimizing the amount of money spent on the advertising campaign and maximize communication throughput or accuracy for a given channel bandwidth/capacity.
+Our approach to optimality test of a given controller is different. We do not take into account dynamical systems, but just finite-state machines.
+
+In \cite{CS19} are reviewed some recent results on the connection between optimal control and formal synthesis. The problem they focus on is formulated as we state it and, moreover, they provide a short-overview of automata-based approach, in which the dynamics of the system are mapped to a finite abstraction that is then controlled by an automaton corresponding to the specification.
+Another work which approaches to the optimal strategy synthesis in same context as our is \cite{HWWZ14}, in which authors show the existence and effective computability of optimal winning strategies for request-response games. The used optimality principle is the mean accumulated waiting times between requests and their responses.
+In \cite{W08} are considered infinite two-player games played on finite graphs where the winning condition is given by a regular omega-language. Two optimization criteria are discussed: memory size of finite automata that execute winning strategies and, for games with liveness requests as winning conditions, waiting times for the satisfaction of requests.
+This work is very close to our approach, even though we do not focus on metrics on the automaton describing the strategy, but at a higher level closer to the user, since we want to provide an algorithm where the optimality principle is controlled by the user as much as possible.
+
+
+% That makes everything easier for sure, but we do not have any other related work about optimal controller in this context.
+
+Regarding the semantics introduced by us, in \cite{MLJ2004} is presented the Almost ASAP semantics for timed controllers. Any correct Almost ASAP controller can be implemented by a program on a hardware if this hardware is fast enough and it is forced to react in a given time bound.
+This formulation is very close to the one given by us, except for the fact that in our semantics we say that the controller can not do better than that bound.
+There exists a ASAP semantics for timed controllers, but it is a mathematical idealization that cannot be implemented by any physical device no matter how fast it is.
+
+\cite{BGS2021} introduces the notion of best-effort strategies but with a different meaning than the one used by us.
+In fact, they call best-effort strategies those strategies that "do not give up immediately", where "do not give up" immediately means extracting a strategy even though the controller cannot always achieve its task.
+Usually, when a strategy notices that it cannot achieve its task in all cases, it is rejected.
+This kind of strategies leads to controllers for which the synthesized formula could be false given some combinations of inputs.
+Moreover, they showed that "doing your best is not harder than giving up", because the complexity does not raise.
+
+\cite{GAMS2020} shows a way to synthesize LTLf formulas with assumptions, the fragments of $\ltl$ where all formulas can be evaluated on finite-traces and as expressive as co-safety fragment of $\ltl$. 
+There are no constraints on those assumptions and they could be even formulas belonging to full $\ltl$. 
+The approach taken is to solve the synthesis problem in two phases: the first one trying to solve the reachability game on $\phi^f$ and, only if the previous game turns out to be unrealizable, solve a parity game on the whole formula where the arena size is reduced thanks to some information achieved by the previous game.
+It has been shown that this algorithm is better than just solving the parity game from the initial formula.
+In our case is different because all formulas are either safety or co-safety properties. 
+In this way we do not need to cope with full $\ltl$ formulas, limiting our games between safety and reachability ones.
+
+% Strategy extraction 
+Speaking about the reachability strategy extraction, in \cite{ELNR2015} is presented a SAT-based approach for another type of games. This type of games relies on counterexample guided search to compute winning sequences of actions represented as an abstract game tree.
+Also in \cite{GAMS2020} is described a strategy extraction algorithm, but it exploits parity games and it is not our case, as we have already said previously.
+Unfortunately, we cannot adapt those algorithms to extract reachability games strategy in our synthesizer, because all algorithms we have used are symbolic.

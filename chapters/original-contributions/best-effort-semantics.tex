@@ -1,0 +1,241 @@
+%!TEX root = ../../main.tex
+
+\section{Best-Effort semantics}
+In this section we introduce the bounded-value and best-effort semantics.
+
+The \textit{bounded-value semantics} is the first semantics presented because it is the basis for the other one.
+Such semantics is useful to add a constraint to a value, ensuring that if a formula satisfies a state-sequence, then such value does not reach a constant value chosen a-priori. 
+Note that we will not set the domain for the variable, but as long as the domain $\domain$ of the variable is a strict partially ordered set $\tuple{\domain,\prec}$ where $\prec$ is the strict partial order on $\domain$ (i.e. $\prec$ is irreflexive, antisymmetric, and transitive on $\domain$).
+We define the bounded-value semantics for both safety and co-safety fragments.
+The definitions in safety and co-safety fragments are different because, while for co-safety properties we need to look only all over the minimal prefix, for safety properties we need to look all over the trace which could be infinite.
+The minimal prefix of a co-safety formula is a state-sequence prefix in which the formula holds the first time.
+All prefixes containing the minimal prefix are sub-state-sequences satisfying the formula, but we do not mind what happens after the first time the formula has held.
+
+\begin{definition}[Bounded-value semantics for co-safety formulas]
+Let $\phi$ be a formula belonging to the co-safety fragment of $\ltl$, $\sigma$ be a state-sequence evaluated at position $i$, $\tuple{\domain,\prec}$ be a strict partially order set, $\sigma.v \in \domain$ a variable and $u \in \domain$ an upper bound to $\sigma.v$.
+We say that $\phi$ is satisfied by $\sigma$ with upper-bound $u$ to $\sigma.v$ at position $i$, denoted as $\sigma,i \modelsBV{v \prec u} \phi$, if and only if
+\begin{flalign*}
+& \text{$\exists j \geq i$ such that $\sigma[i,j] \models \phi$, $\sigma[i,j-1] \not\models \phi$ and $\forall k \in [i,j].\; \sigma_k.v \prec u$}
+\end{flalign*}
+We say $\sigma \modelsBV{v \prec u} \phi$ if and only if $\sigma, 0 \modelsBV{v \prec u} \phi$.
+\end{definition}
+
+Differently from co-safety formulas where we can fix a point in time up to evaluate the formula, safety formulas are evaluated on possibly infinite state-sequences.
+For this reason we define the bounded-value semantics for safety formulas inductively on the structure of safety formulas.
+In order to avoid the formulation of bounded-value semantic for a negated generic formula, we consider only formulas in Negated Normal Form (NNF). 
+The temporal operators needed to define safety formulas in NNF are: \textit{next}, \textit{yesterday}, \textit{release}, \textit{trigger} and \textit{since}.
+Moreover, it is possible to define all temporal operators which are abbreviations of the ones listed here above that do not require negations in front of themselves, such as \textit{globally}, \textit{historically} and \textit{once}.
+The basic idea is to check that the value of the chosen variable is related to the bound at every step.
+The semantics is almost the same as the regular one, but we check the condition whenever we meet a proposition (negated or not) and whenever we take a step forward or backward.
+In any other cases, the semantics does not change.
+In fact, all abbreviations and equivalences holding in other safety dialects of $\ltl$, holds here too.
+
+\begin{definition}[Bounded-value semantics for safety formulas]
+Let $\phi$ be a formula belonging to the safety fragment of $\ltl$, $\sigma$ be a state-sequence evaluated at position $i$, $\tuple{\domain,\prec}$ be a strict partially order set, $\sigma.v \in \domain$ a variable and $u \in \domain$ an upper bound to $\sigma.v$.
+We say that $\phi$ is satisfied by $\sigma$ with upper-bound $u$ to $\sigma.v$ at position $i$, denoted as $\sigma,i \modelsBV{v \prec u} \phi$, if and only if
+\begin{flalign*}
+&\sigma,i \modelsBV{v \prec u} p &\iff& & & p \in \sigma_i \land \sigma_i.v \prec u \\
+&\sigma,i \modelsBV{v \prec u} \ltlNeg{p} &\iff& & & p \not\in \sigma_i \land \sigma_i.v \prec u \\
+&\sigma,i \modelsBV{v \prec u} \ltlOr{\phi_1}{\phi_2} &\iff& & & \text{$\sigma,i \modelsBV{v \prec u} \phi_1$ or $\sigma,i \modelsBV{v \prec u} \phi_2$} \\
+&\sigma,i \modelsBV{v \prec u} \ltlAnd{\phi_1}{\phi_2} &\iff& & & \text{$\sigma,i \modelsBV{v \prec u} \phi_1$ and $\sigma,i \modelsBV{v \prec u} \phi_2$} \\
+&\sigma,i \modelsBV{v \prec u} \ltlX{\phi} &\iff& & & \sigma,i+1 \modelsBV{v \prec u} \phi \\
+&\sigma,i \modelsBV{v \prec u} \ltlY{\phi} &\iff& & & \text{$i>0$ and $\sigma,i-1 \modelsBV{v \prec u} \phi$} \\
+&\sigma,i \modelsBV{v \prec u} \ltlR{\phi_1}{\phi_2} &\iff& & & \text{either for all $j \geq i. \; \sigma,j \modelsBV{v \prec u} \phi_2$,} \\
+& & & & & \text{or there exists $j \geq i$ such that $\sigma,j \modelsBV{v \prec u} \phi_1$ and} \\
+& & & & & \text{$\sigma,w \modelsBV{v \prec u} \phi_2$ for all $i \leq w \leq j$} \\
+&\sigma,i \modelsBV{v \prec u} \ltlS{\phi_1}{\phi_2} & \iff & & & \text{there exists $0 \leq j \leq i$ such that $\sigma,j \modelsBV{v \prec u} \phi_2$ and} \\
+& & & & & \text{$\sigma,w \modelsBV{v \prec u} \phi_1$ for all $j < w \leq i$} \\
+&\sigma,i \modelsBV{v \prec u} \ltlT{\phi_1}{\phi_2} & \iff & & & \text{either for all $0 \leq j \leq i. \; \sigma,j \modelsBV{v \prec u} \phi_2$,} \\
+& & & & & \text{or there exists $j \in [0,i]$ such that $\sigma,j \modelsBV{v \prec u} \phi_1$ and} \\
+& & & & & \text{$\sigma,w \modelsBV{v \prec u} \phi_2$ for all $j \leq w \leq i$}
+\end{flalign*}
+We say $\sigma \modelsBV{v \prec u} \phi$ if and only if $\sigma, 0 \modelsBV{v \prec u} \phi$.
+\end{definition}
+
+The bounded-value semantics is the basis of the best-effort semantics. 
+The \textit{best-effort semantics} imposes to satisfy a formula with bounded-value semantics, where the bound is the least upper bound of values satisfying the formula with bounded-value semantics.
+Therefore, there is no other value strictly smaller than the chosen one such that a state-sequence models a formula.
+The best-effort semantics is useful because it imposes a constraint also to the upper bound.
+
+\begin{definition}[Best-effort semantics]
+Let $\phi$ be a formula belonging to either safety and co-safety fragment of $\ltl$, $\sigma$ be a state-sequence evaluated at position $i$, $\tuple{\domain,\prec}$ be a strict partially order set, $\sigma.v \in \domain$ a variable and $u \in \domain$ an upper bound to $\sigma.v$.
+We say that $\phi$ is satisfied by $\sigma$ best-effort $u$ to $\sigma.v$ at position $i$, denoted as $\sigma, i \modelsBE{v \prec u} \phi$, if and only if
+\begin{flalign*}
+\sigma, i \modelsBV{v \prec u} \phi \land
+\forall u' \prec u \; \sigma, i \not\modelsBV{v \prec u'} \phi
+\end{flalign*}
+We say $\sigma \modelsBV{v \prec u} \phi$ if and only if $\sigma, 0 \modelsBV{v \prec u} \phi$.
+\end{definition}
+
+\subsection{Notable examples}
+In this sub-section we present two use-cases of bounded-value semantics and best-effort semantics. 
+For these examples We consider the strict partially ordered set $\tuple{\Nat,<}$ and the corresponding relation $>$. Note that since the relation $<$ on the set of natural numbers has only one previous element for any number, to check whether a formula is satisfied best-effort with bound $u$, we just need to check whether is not satisfied with bound $u$ but not with bound $u-1$.
+
+The first example regards a co-safety property. Suppose we are driving a car to reach a given position on a grid. In this case the plant is the car, while you, the driver, are the controller.
+The car knows its internal position $(x,y)$ and has a battery level. 
+At each step the battery decreases by $1$, starting from $100$. 
+Whenever the battery level reaches $0$ the car cannot perform any further move.
+Available moves are: up, down, left, right, right up, right down, left up and left down.
+So we can move in all $8$ directions.
+
+\begin{lstlisting}[language=smv, caption=Best-effort semantics: Car example (1)]
+MODULE Car(move)
+VAR
+    x : 0..width;
+    y : 0..length;
+    battery : 0..max_battery;
+DEFINE
+    length := 20;
+    width  := 20;
+    starting_x := 0;
+    starting_y := 0;
+    max_battery := 100;
+ASSIGN
+    init(x) := starting_x;
+    init(y) := starting_y;
+    init(battery) := max_battery;
+ASSIGN
+    next(x) := case
+        battery!=0 & (move=right | move=right_up | move=right_down) & x<width : x + 1;
+        battery!=0 & (move=left | move=left_up | move=left_down) & x>0  : x - 1;
+        TRUE : x;
+    esac;
+    next(y) := case
+        battery!=0 & (move=up | move=left_up | move=right_up) & y<length : y + 1;
+        battery!=0 & (move=down | move=left_down | move=right_down) & y>0  : y - 1;
+        TRUE : y;battery!=0
+    esac;
+    next(battery) := case 
+        move!=stop & battery > 0 : battery - 1;
+        TRUE : battery;
+    esac;
+\end{lstlisting}
+
+Let us define the first controller for the car: Driver1.
+Driver1 accepts in input the position $(x,y)$ given by Car and aims to reach the position $(15,7)$ on the grid, but this driver does not know that it is possible to perform diagonal moves, so it goes only up, down, left and right.
+The implemented strategy by Driver1 is to reach before the same x-axis as the goal one and the reach the same y-axis, ending up in the goal position.
+
+\begin{lstlisting}[language=smv, caption=Best-effort semantics: Car example (2)]
+MODULE Driver1(x,y)
+VAR
+    move : {up,down,right,left,
+            right_up,right_down,
+            left_up,left_down,
+            stop};
+DEFINE 
+    goal_x := 15;
+    goal_y := 7;
+ASSIGN
+    move := case
+        x < goal_x  : right;
+        x > goal_x  : left;
+        y < goal_y  : up;
+        y > goal_y  : down;
+        TRUE : stop;
+    esac;
+\end{lstlisting}
+
+Putting in closed-loop Car and Driver1, we can verify some properties on this system.
+The easiest property is to verify whether Driver1 reaches the goal position, but keeping the value of the battery greater than $76$.
+In bounded-value semantics, it would be something like that: 
+\begin{flalign*}
+    \closedloop{\text{C}}{\text{D}} \modelsBV{-\text{C.battery} < -76} \ltlF{(\ltlAnd{\text{C.x} = \text{D.goal\_x}}{\text{C.y} = \text{D.goal\_y}})}
+\end{flalign*}
+
+Note that since the bounded-value semantics is defined with a $<$ constraint, but we want to describe a $>$ constraint, it is enough multiply both terms by $-1$ in order to invert the inequality sign.
+By running any the model checker NuSMV, we see that Driver1 reaches the goal position by always keeping the battery level greater than $76$.
+We note that by lowering the bound $-76$ by $1$, so obtaining $-77$, the formula is no more satisfied, therefore we can say that such closed-loop satisfies best-effort the formula.
+
+Now the question becomes, is Driver1 the optimal controller for Car?
+To answer this question we need to show either another controller which satisfies the formula by keeping the battery level less than or equal to $-77$, or the not existence of such a controller.
+In this case it is easy to see that a better controller is one which moves diagonally.
+Driver2 is an example of controller moving also diagonally, which reaches the goal position by keeping the battery level $> 77$.
+Therefore, Driver1 was not the optimal controller for that plant and that formula.
+
+\begin{lstlisting}[language=smv, caption=Best-effort semantics: Car example (3)]
+MODULE Driver2(x,y)
+VAR
+    move : {up,down,right,left,
+            right_up,right_down,
+            left_up,left_down,
+            stop};
+DEFINE 
+    goal_x := 15;
+    goal_y := 7;
+ASSIGN
+    move := case
+        x < goal_x & y < goal_y  : right_up;
+        x < goal_x & y > goal_y  : right_down;
+        x < goal_x & y = goal_y  : right;
+        x > goal_x & y < goal_y  : left_up;
+        x > goal_x & y > goal_y  : left_down;
+        x > goal_x & y = goal_y  : left;
+        y < goal_y  & x = goal_x : up;
+        y > goal_y  & x = goal_x : down;
+        TRUE : stop;
+    esac;
+\end{lstlisting}
+
+Regarding safety properties, we consider a water boiler with a controller which must keep the water temperature between $30$ and $70$ degrees.
+The boiler, when it is on increments the temperature by $1$, while when it is off the water temperature drops one degree at a time.
+We also consider the energy consumption to warm the water, which is exactly the number of steps in which the boiler is on.
+Whenever the controller turns off the boiler, the energy consumption is set to $0$.
+
+\begin{lstlisting}[language=smv, caption=Best-effort semantics: Boiler example (1)]
+MODULE Boiler(on)
+VAR 
+    temp  : 0..100;
+    energy : 0..100;
+ASSIGN
+    init(temp) := 50;
+    next(temp) := case
+        temp=100 : 100;
+        temp=0 : 0;
+        on  : temp + 1;
+        !on : temp - 1;
+    esac;
+    init(energy) := 0;
+    next(energy) := case
+        !on : 0;
+        on & energy < 100 : energy + 1;
+        TRUE : energy;
+    esac;
+\end{lstlisting}
+
+We define Controller1 in such a way that turns on the boiler exactly when the water temperature goes lower than $40$ degrees and turns off the boiler when the water temperature reaches $50$ degrees.
+
+\begin{lstlisting}[language=smv, caption=Best-effort semantics: Boiler example (2)]
+MODULE Controller1(temp)
+VAR
+    on : boolean;
+ASSIGN
+    init(on) := FALSE;
+    next(on) := case
+        temp <= 40 : TRUE;
+        temp >= 50 : FALSE;
+        TRUE : on;
+    esac;
+\end{lstlisting}
+
+We can verify some properties on the closed-loop, like verifying that the water temperature is always between the required range and we use little energy as possible.
+
+\begin{flalign*}
+    \closedloop{\text{B}}{\text{C}} \modelsBV{\text{B.energy} < 13} \ltlG{(\ltlAnd{\text{B.temp} \geq 30}{\text{B.temp} \leq 70})}
+\end{flalign*}
+
+It is easy to see that the formula we are verifying is also satisfied best-effort by Controller1 with upper-bound $13$.
+Unfortunately, Controller1 is not optimal because there exists other controller which are satisfied with a lower upper-bound. 
+One among them is Controller2 which satisfies the formula keeping the energy always lower than $6$.
+
+\begin{lstlisting}[language=smv, caption=Best-effort semantics: Boiler example (3)]
+MODULE Controller2(temp)
+VAR
+    on : boolean;
+ASSIGN
+    init(on) := FALSE;
+    next(on) := case
+        temp < 40 : TRUE;
+        temp > 41 : FALSE;
+        TRUE : on;
+    esac;
+\end{lstlisting}

@@ -1,0 +1,16 @@
+%!TEX root = ../main.tex
+
+% This is the abstract of the thesis.
+
+This thesis examines an optimality test algorithm to state whether the controller of a closed-loop system satisfies a formula in the best way with respect to an optimality principle.
+More formally, given a plant, a controller and a safety or co-safety $\ltl$ formula, we want to figure out whether the formula is satisfied in the closed-loop between plant and controller and whether there exists another controller which does better than the given one according to an optimality principle.
+If such a controller exists, then it means that the given controller is not optimal and we provide the new controller just found as a proof of this fact. Otherwise, such a controller does not exist and it means that the given controller is optimal.
+
+To formally define the optimality principle, we introduce four semantics for both safety and co-safety fragments: bounded-value, best-effort, bounded-steps and As Soon As Possible (ASAP) semantics. 
+The first semantics forces a state-sequence to satisfy a formula by keeping a plant variable always lower than a bound chosen a-priori, while the second semantics forces it to satisfy bounded-value a formula with the tightest possible bound.
+The third semantics forces a state-sequence to satisfy a formula in a maximum of steps chosen a-priori, while the last one forces it to satisfy a formula in as few steps as possible.
+Moreover, we prove that ASAP semantics is just one of the possible best-effort semantics instantiations.
+The optimality principle used during the thesis is the one given by the best-effort semantics since it is the most generic one.
+
+Afterwards, we show that this decision problem can be reduced to a synthesis problem where we try to synthesize a controller which is better than the given one by construction.
+Finally, we implement the optimality test algorithm in nuXmv and a custom safety and co-safety synthesizer from scratch, used by the algorithm to solve safety and reachability games.

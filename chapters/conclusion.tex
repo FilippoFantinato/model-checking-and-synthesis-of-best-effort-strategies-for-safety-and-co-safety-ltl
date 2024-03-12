@@ -1,0 +1,32 @@
+%!TEX root = ../main.tex
+\chapter{Conclusion and Future Work} \label{chapt:conclusion}
+% Conclusione e lavori futuri.
+
+In this thesis we have studied the problem of testing the optimality of a controller under a specific optimality principle.
+More formally, the problem we have faced is: given a plant, a controller and a safety or co-safety $\ltl$ formula satisfied in the closed-loop between plant and controller, we want to figure out whether such controller is the best one satisfying that formula for the plant according to an optimality principle.
+
+To define the concept of optimal controller we need to define two semantics: bounded-value semantics and best-effort semantics.
+The first semantics is useful to add a further constraint to a variable and forcing it to be lower than a bound $u$ given a-priori.
+The best-effort semantics is defined exploiting the bounded-value semantics as follows: a formula is satisfied best-effort by a state-sequence with bound $u^*$ if and only if $u^*$ is the least upper bound to the bounds making that formula satisfied bounded-value by that state-sequence.
+In other words, if we take any $u' \prec u^*$ as new bound, it must hold that formula is not satisfied by the state-sequence.
+
+Moreover, we have presented other two semantics: bounded-steps semantics and As Soon As Possible (ASAP) semantics.
+The first semantic forces a formula to be satisfied in a bounded number of steps, while the latter one forces a formula to be satisfied in the smallest number of steps.
+As for the previous two semantics, ASAP semantics is defined exploiting bounded-steps semantics as follows: a formula is satisfied ASAP by a state-sequence in $u$ steps, if it is satisfied bounded-steps in $u$ steps but not satisfied in $u-1$ steps.
+Later we have proved the correspondence between ASAP and best-effort semantics, pointing out the fact that bounded-steps and ASAP semantics are just one of the possible instances of bounded-value and best-effort semantics.  
+
+In our case we have considered the best-effort semantics to define the optimality principle, since it is the most general one. 
+Therefore, a controller is said optimal if and only if it satisfies a formula with bound $u^*$ under best-effort semantics and there does not exist any other controller satisfying the same formula with any lower bound, i.e. any $u' \prec u^*$.
+
+Afterwards, we have proposed a way to solve the optimality check by reduction to a reactive synthesis problem. In particular, we figure out whether the given controller is optimal or not, by reducing the synthesis of a new controller with a lower bound to solving a safety or a reachability game, depending on the type of property we want to synthesize. If the property is a safety property, then we play a safety game, while if the property is a co-safety property, then we play a reachability game.
+The arena on which we play the game is always a safety arena and we exploit the duality between safety and reachability games to synthesize correctly the formula with the plant as assumptions. The arena on which we play the game is a constrained arena obtained from the synchronous product between formula arena and plant arena (the assumptions), to which we add additional constraints to force the synthesis of a better controller. If the game is not realizable, then it means that the given controller is optimal and we cannot do better than that, while if the game is realizable, it means that there exists a better controller which corresponds to the one just synthesized. 
+
+The optimality test described above has been implemented in nuXmv and, to solve the game, it exploits a safety and reachability synthesizer made from scratch by us.
+
+In conclusion, let us see some possible future works on this topic.
+One possible future work is to generalize the optimality principle with a generic cost function instead of the "less than u" bound.
+Consequently, the meaning of best-effort semantics would change and would allow to express scenarios where the cost of enforcing a property depends not only on the number of steps, but also on the specific action taken by the controller, or by some other factors such as the energy consumption or the resources needed to take an action.
+A further possible future work is to implement an iterative algorithm to get the optimal controller starting from a non optimal one in the ASAP semantics.
+Such iterative algorithm behaves as follows: starting from an initial controller, if a better controller is not realizable, then it means that such controller is optimal, otherwise repeat the cycle with the improved controller returned by the optimality test.
+Since we lower the bound at each iteration, and the bound is a non-negative integer, such algorithm does not diverge and it is ensured to not reach sub-optimal controllers.
+Finally, it would be interesting to apply the concept of optimal controller given by best-effort semantics to distributed systems, reducing the problem to a distributed reactive synthesis problem.

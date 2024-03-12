@@ -1,0 +1,16 @@
+#!/bin/sh
+BASEDIR=$(dirname $0)
+BUILDDIR="build"
+cd $BASEDIR
+cd ..
+
+
+# Build the dissertation.
+xelatex --output-directory=$BUILDDIR --shell-escape main
+bibtex $BUILDDIR/main
+xelatex --output-directory=$BUILDDIR --shell-escape main
+xelatex --output-directory=$BUILDDIR --shell-escape main
+
+# Hide the log.
+mv "main.log" ".main"
+
