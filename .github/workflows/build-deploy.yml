@@ -1,0 +1,26 @@
+name: Build and deploy
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Compile tex file into pdf
+        uses: xu-cheng/latex-action@v2
+        with:
+          root_file: main.tex
+          latexmk_shell_escape: true
+        
+      - uses: actions/upload-artifact@v2
+        with:
+          name: Master thesis
+          path: main.pdf
