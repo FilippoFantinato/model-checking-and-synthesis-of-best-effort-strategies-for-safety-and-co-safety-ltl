@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.2
 
       - name: Compile tex file into pdf
         uses: xu-cheng/latex-action@v3
@@ -20,7 +20,6 @@ jobs:
           root_file: main.tex
           latexmk_use_xelatex: true
           latexmk_shell_escape: true
-          continue_on_error: true
           extra_fonts: |
             ./fonts/EB_Garamond/*.otf
             ./fonts/Lato/*.ttf
